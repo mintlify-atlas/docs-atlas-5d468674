@@ -1,0 +1,143 @@
+---
+title: 'Getting Started for Teachers'
+description: 'Learn how to access the teacher panel and set up your profile'
+icon: 'rocket'
+---
+
+## Overview
+
+The Examen App teacher panel allows you to create exams, manage questions, view student results, and print exam materials. This guide will help you get started.
+
+## Authentication
+
+The app uses Firebase Authentication with email/password. Before you can register, an administrator must add your email to the authorized teachers list.
+
+<Steps>
+  <Step title="Request Access">
+    Contact your system administrator to add your institutional email to the teachers list in the "Docentes" (Teachers) section.
+  </Step>
+  
+  <Step title="Register Your Account">
+    Navigate to the teacher panel and click the **Registro** (Register) tab.
+    
+    Fill in your credentials:
+    - **Correo institucional** (Institutional email): Your authorized email
+    - **Contraseña** (Password): Choose a secure password
+    
+    <CodeGroup>
+    ```javascript Email Validation
+    // Registration checks whitelist first
+const q = query(
+  collection(db, "docentes"),
+  where("email", "==", email)
+);
+const querySnapshot = await getDocs(q);
+if (querySnapshot.empty) {
+  setErrorLogin("❌ Correo no autorizado. Pide al admin que te agregue.");
+  return;
+}
+await createUserWithEmailAndPassword(auth, email, password);
+    ```
+    </CodeGroup>
+    
+    <Note>
+      If your email is not in the authorized list, you'll see: "❌ Correo no autorizado. Pide al admin que te agregue."
+    </Note>
+  </Step>
+  
+  <Step title="Login">
+    After registration, use the **Login** tab to access your account:
+    
+    ```javascript
+    await signInWithEmailAndPassword(auth, email, password);
+    ```
+    
+    Common error codes:
+    - `auth/email-already-in-use`: Email is already registered
+    - `auth/invalid-credential`: Incorrect email or password
+  </Step>
+</Steps>
+
+## Teacher Profile Setup
+
+<Accordion title="Setting Up Your Profile">
+  Once logged in, your profile information is loaded automatically:
+  
+  ```javascript Profile Loading
+  const cargarDocentes = async (emailLogueado) => {
+    const docSnap = await getDocs(collection(db, "docentes"));
+    const lista = docSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    setDocentes(lista);
+    const yo = lista.find(d => d.email === emailLogueado);
+    if (yo) setDocenteActual(yo);
+  };
+  ```
+  
+  Your profile includes:
+  - **Nombre**: Full name with academic degree
+  - **Email**: Institutional email
+  - **fechaRegistro**: Registration timestamp
+</Accordion>
+
+## Main Interface Sections
+
+The teacher panel has three main views:
+
+<CardGroup cols={3}>
+  <Card title="Exámenes" icon="file-lines">
+    Create and manage exams, add questions, and configure exam settings
+  </Card>
+  <Card title="Resultados" icon="chart-bar">
+    View student results, filter by exam or student, and export reports
+  </Card>
+  <Card title="Docentes" icon="users">
+    Manage teacher directory (admin feature)
+  </Card>
+</CardGroup>
+
+## Theme Customization
+
+The app supports three themes that persist across sessions:
+
+```javascript Theme System
+const THEMES = {
+  claro: { bg: '#ffffff', text: '#333333', card: '#f9f9f9', border: '#dddddd', accent: '#007bff', inputBg: '#fff' },
+  oscuro: { bg: '#1e1e1e', text: '#e0e0e0', card: '#2d2d2d', border: '#444444', accent: '#4dabf7', inputBg: '#333' },
+  calido: { bg: '#f5e6d3', text: '#4a3b2a', card: '#e8dcc5', border: '#d1c7b7', accent: '#a67c52', inputBg: '#fff8f0' }
+};
+
+const [temaActual, setTemaActual] = useState(() => 
+  localStorage.getItem('temaApp') || 'claro'
+);
+```
+
+Click the theme buttons in the header:
+- 🌞 Light theme (`claro`)
+- 🌙 Dark theme (`oscuro`)
+- 🌅 Warm theme (`calido`) - for reduced eye strain
+
+## Academic Units
+
+The system supports seven academic units:
+
+```javascript
+const UNIDADES_ACADEMICAS = [
+  "Zongolica", "Tequila", "Nogales", "Acultzinapa", 
+  "Cuichapa", "Tezonapa", "Tehuipango"
+];
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Create Your First Exam" icon="plus" href="/teachers/creating-exams">
+    Learn how to create and configure exams
+  </Card>
+  <Card title="Add Questions" icon="list-check" href="/teachers/managing-questions">
+    Add questions manually or via CSV import
+  </Card>
+</CardGroup>
+
+<Warning>
+  Always log out when using shared computers by clicking the **Salir** (Logout) button in the header.
+</Warning>

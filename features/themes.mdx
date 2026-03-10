@@ -1,0 +1,324 @@
+---
+title: 'Theme System'
+description: 'Multi-theme support with persistent user preferences'
+icon: 'palette'
+---
+
+## Overview
+
+The Examen App features a comprehensive theming system with three built-in themes that apply consistently across all pages. Theme preferences are persisted in `localStorage` for a seamless user experience.
+
+## Available Themes
+
+The application provides three carefully designed themes:
+
+<CardGroup cols={3}>
+  <Card title="Claro (Light)" icon="sun">
+    Clean, bright interface for daytime use
+  </Card>
+  
+  <Card title="Oscuro (Dark)" icon="moon">
+    Easy on the eyes for low-light environments
+  </Card>
+  
+  <Card title="Cálido (Warm)" icon="mug-hot">
+    Comfortable, warm tones for extended reading
+  </Card>
+</CardGroup>
+
+## Theme Configuration
+
+Themes are defined as constant objects with consistent color properties:
+
+### Home Page Themes
+
+```javascript src/Home.jsx
+const THEMES = {
+  claro: { 
+    bg: '#ffffff', 
+    text: '#333333', 
+    card: '#f0f0f0', 
+    border: '#cccccc' 
+  },
+  oscuro: { 
+    bg: '#121212', 
+    text: '#e0e0e0', 
+    card: '#1e1e1e', 
+    border: '#333333' 
+  },
+  calido: { 
+    bg: '#f5e6d3', 
+    text: '#4a3b2a', 
+    card: '#e8dcc5', 
+    border: '#d1c7b7' 
+  }
+};
+```
+
+### Exam Page Themes
+
+```javascript src/Examen.jsx
+const THEMES = {
+  claro: { 
+    bg: '#ffffff', 
+    text: '#333333', 
+    card: '#f8f9fa', 
+    border: '#ddd', 
+    inputBg: '#fff' 
+  },
+  oscuro: { 
+    bg: '#121212', 
+    text: '#e0e0e0', 
+    card: '#1e1e1e', 
+    border: '#444', 
+    inputBg: '#2d2d2d' 
+  },
+  calido: { 
+    bg: '#f5e6d3', 
+    text: '#4a3b2a', 
+    card: '#e8dcc5', 
+    border: '#d1c7b7', 
+    inputBg: '#fff8f0' 
+  }
+};
+```
+
+### Teacher Panel Themes
+
+```javascript src/PanelProfesor.jsx
+const THEMES = {
+  claro: { 
+    bg: '#ffffff', 
+    text: '#333333', 
+    card: '#f9f9f9', 
+    border: '#dddddd', 
+    accent: '#007bff', 
+    inputBg: '#fff' 
+  },
+  oscuro: { 
+    bg: '#1e1e1e', 
+    text: '#e0e0e0', 
+    card: '#2d2d2d', 
+    border: '#444444', 
+    accent: '#4dabf7', 
+    inputBg: '#333' 
+  },
+  calido: { 
+    bg: '#f5e6d3', 
+    text: '#4a3b2a', 
+    card: '#e8dcc5', 
+    border: '#d1c7b7', 
+    accent: '#a67c52', 
+    inputBg: '#fff8f0' 
+  }
+};
+```
+
+## Theme Properties
+
+Each theme defines the following properties:
+
+<AccordionGroup>
+  <Accordion title="Core Colors">
+    - **bg**: Main background color
+    - **text**: Primary text color
+    - **card**: Card/container background
+    - **border**: Border colors for elements
+  </Accordion>
+  
+  <Accordion title="Interactive Elements">
+    - **inputBg**: Input field backgrounds (Examen & PanelProfesor only)
+    - **accent**: Accent color for buttons and highlights (PanelProfesor only)
+  </Accordion>
+</AccordionGroup>
+
+## Implementation
+
+### State Management
+
+Theme state is managed with React hooks and synchronized with localStorage:
+
+```javascript
+const [temaActual, setTemaActual] = useState(
+  () => localStorage.getItem('temaApp') || 'claro'
+);
+const styles = THEMES[temaActual];
+
+useEffect(() => {
+  localStorage.setItem('temaApp', temaActual);
+}, [temaActual]);
+```
+
+### Theme Switcher UI
+
+Theme selection is implemented with emoji buttons:
+
+```javascript src/Home.jsx
+<div style={{ 
+  display: 'flex', 
+  justifyContent: 'flex-end', 
+  gap: '10px' 
+}}>
+  <button 
+    onClick={() => setTemaActual('claro')} 
+    style={{ cursor: 'pointer', fontSize: '1.2em' }}
+  >
+    🌞
+  </button>
+  <button 
+    onClick={() => setTemaActual('oscuro')} 
+    style={{ cursor: 'pointer', fontSize: '1.2em' }}
+  >
+    🌙
+  </button>
+  <button 
+    onClick={() => setTemaActual('calido')} 
+    style={{ cursor: 'pointer', fontSize: '1.2em' }}
+  >
+    ☕
+  </button>
+</div>
+```
+
+## Dynamic Styling
+
+### Applying Theme Colors
+
+Themes are applied through inline styles using the `styles` object:
+
+```javascript
+<div style={{ 
+  backgroundColor: styles.bg, 
+  color: styles.text,
+  padding: '20px' 
+}}>
+  <div style={{ 
+    background: styles.card, 
+    border: `1px solid ${styles.border}`,
+    borderRadius: '8px'
+  }}>
+    {/* Content */}
+  </div>
+</div>
+```
+
+### Interactive Elements
+
+Selected options get theme-aware highlighting:
+
+```javascript src/Examen.jsx
+<label style={{
+  background: respuestas[p.texto] === op 
+    ? (temaActual==='oscuro' ? '#333' : '#e7f1ff') 
+    : 'transparent'
+}}>
+  <input type="radio" /> {op}
+</label>
+```
+
+## Persistence Behavior
+
+<Steps>
+  <Step title="Initial Load">
+    On first visit, the app defaults to `'claro'` theme
+  </Step>
+  
+  <Step title="User Selection">
+    When user clicks a theme button, the preference is immediately saved to localStorage
+  </Step>
+  
+  <Step title="Cross-Page Consistency">
+    All pages read from the same localStorage key (`'temaApp'`)
+  </Step>
+  
+  <Step title="Subsequent Visits">
+    On return visits, the saved theme is automatically loaded
+  </Step>
+</Steps>
+
+## Theme Consistency
+
+<Warning>
+While themes are defined separately in each component, the color values are **not exactly identical** across all pages. For example:
+
+- Home uses `card: '#f0f0f0'` for light theme
+- Examen uses `card: '#f8f9fa'` for light theme  
+- PanelProfesor uses `card: '#f9f9f9'` for light theme
+
+Consider centralizing theme definitions in a shared constants file for perfect consistency.
+</Warning>
+
+## Accessibility Considerations
+
+<CardGroup cols={2}>
+  <Card title="Contrast Ratios" icon="eye">
+    All themes maintain readable contrast between text and background
+  </Card>
+  
+  <Card title="Dark Mode Support" icon="moon">
+    Native dark mode reduces eye strain in low-light conditions
+  </Card>
+  
+  <Card title="Color Independence" icon="universal-access">
+    Interface doesn't rely solely on color to convey information
+  </Card>
+  
+  <Card title="User Preference" icon="user">
+    Persistent storage respects user choice across sessions
+  </Card>
+</CardGroup>
+
+## Example: Complete Component Integration
+
+```javascript
+import { useState, useEffect } from 'react';
+
+const THEMES = {
+  claro: { bg: '#ffffff', text: '#333333', card: '#f0f0f0' },
+  oscuro: { bg: '#121212', text: '#e0e0e0', card: '#1e1e1e' },
+  calido: { bg: '#f5e6d3', text: '#4a3b2a', card: '#e8dcc5' }
+};
+
+export default function MyComponent() {
+  const [temaActual, setTemaActual] = useState(
+    () => localStorage.getItem('temaApp') || 'claro'
+  );
+  const styles = THEMES[temaActual];
+
+  useEffect(() => {
+    localStorage.setItem('temaApp', temaActual);
+  }, [temaActual]);
+
+  return (
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: styles.bg, 
+      color: styles.text 
+    }}>
+      {/* Theme switcher */}
+      <div>
+        <button onClick={() => setTemaActual('claro')}>🌞</button>
+        <button onClick={() => setTemaActual('oscuro')}>🌙</button>
+        <button onClick={() => setTemaActual('calido')}>☕</button>
+      </div>
+      
+      {/* Content */}
+      <div style={{ background: styles.card }}>
+        Your content here
+      </div>
+    </div>
+  );
+}
+```
+
+## Future Enhancements
+
+<Note>
+Potential improvements to the theme system:
+
+- Centralize theme definitions in a shared `themes.js` file
+- Add more theme options (e.g., high contrast, sepia)
+- Implement system preference detection (`prefers-color-scheme`)
+- Add smooth transitions between theme changes
+- Export theme selection to user profile in Firebase
+</Note>

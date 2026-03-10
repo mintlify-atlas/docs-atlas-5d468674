@@ -1,0 +1,463 @@
+---
+title: 'Viewing Student Results'
+description: 'Monitor student performance and export reports'
+icon: 'chart-bar'
+---
+
+## Accessing Results
+
+Click the **📊 Resultados** tab in the main navigation to view all student exam submissions.
+
+<Note>
+  Results are loaded on-demand when you enter the Results view to improve performance:
+  
+  ```javascript PanelProfesor.jsx:302
+  <button onClick={() => { 
+    setVistaActual('resultados'); 
+    cargarResultados(); 
+  }}>
+    📊 Resultados
+  </button>
+  ```
+</Note>
+
+## Results Data Structure
+
+Each result record contains:
+
+```javascript Result Document
+{
+  id: "auto-generated-id",
+  examenId: "exam-document-id",
+  examenTitulo: "Parcial 1 - Matemáticas",
+  nombre: "Juan Pérez García",
+  numControl: "123W1041",
+  unidad: "Zongolica",
+  calificacion: 8.5,
+  fecha: "2026-03-10T15:30:00.000Z"
+}
+```
+
+<ResponseField name="examenId" type="string">
+  Reference to the exam document ID
+</ResponseField>
+
+<ResponseField name="examenTitulo" type="string">
+  Exam display name (for filtering and display)
+</ResponseField>
+
+<ResponseField name="nombre" type="string">
+  Student's full name
+</ResponseField>
+
+<ResponseField name="numControl" type="string">
+  Student control number (format: 123W1041)
+</ResponseField>
+
+<ResponseField name="unidad" type="string">
+  Academic unit where student is enrolled
+</ResponseField>
+
+<ResponseField name="calificacion" type="number">
+  Score on a 0-10 scale (calculated as: aciertos / total * 10)
+</ResponseField>
+
+<ResponseField name="fecha" type="string">
+  ISO 8601 timestamp of submission
+</ResponseField>
+
+## Loading Results
+
+```javascript Load Results Query
+const cargarResultados = async () => {
+  setCargandoResultados(true);
+  try {
+    const resQ = query(
+      collection(db, "resultados"), 
+      orderBy("fecha", "desc") // Most recent first
+    );
+    const resSnap = await getDocs(resQ);
+    setResultados(resSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (error) { 
+    console.error(error); 
+  } finally { 
+    setCargandoResultados(false); 
+  }
+};
+```
+
+<Info>
+  Results are ordered by date (newest first) using Firestore's `orderBy` clause.
+</Info>
+
+## Filtering Results
+
+The results view includes powerful filtering options to find specific data.
+
+### Available Filters
+
+<Tabs>
+  <Tab title="By Exam">
+    Filter results for a specific exam:
+    
+    ```javascript PanelProfesor.jsx:444
+    <select value={filtros.examenId} onChange={e => setFiltros({...filtros, examenId: e.target.value})}>
+      <option value="">Todos</option>
+      {examenes.map(ex => 
+        <option key={ex.id} value={ex.id}>
+          {ex.nombreExamen ? ex.nombreExamen : ex.titulo}
+        </option>
+      )}
+    </select>
+    ```
+    
+    Shows only results for the selected exam.
+  </Tab>
+  
+  <Tab title="By Control Number">
+    Search by student control number:
+    
+    ```javascript PanelProfesor.jsx:445
+    <input 
+      type="text" 
+      placeholder="..." 
+      value={filtros.numControl} 
+      onChange={e => setFiltros({...filtros, numControl: e.target.value})}
+    />
+    ```
+    
+    Performs case-insensitive partial match:
+    
+    ```javascript
+    if (filtros.numControl && 
+        !r.numControl.includes(filtros.numControl.toUpperCase())) {
+      return false;
+    }
+    ```
+  </Tab>
+  
+  <Tab title="By Academic Unit">
+    Filter by student's academic unit:
+    
+    ```javascript PanelProfesor.jsx:446
+    <select value={filtros.unidad} onChange={e => setFiltros({...filtros, unidad: e.target.value})}>
+      <option value="">Todas</option>
+      {UNIDADES_ACADEMICAS.map(u => 
+        <option key={u} value={u}>{u}</option>
+      )}
+    </select>
+    ```
+    
+    Available units:
+    - Zongolica
+    - Tequila
+    - Nogales
+    - Acultzinapa
+    - Cuichapa
+    - Tezonapa
+    - Tehuipango
+  </Tab>
+</Tabs>
+
+### Filter Logic
+
+Filters are applied using `useMemo` for performance:
+
+```javascript Filter Implementation
+const resultadosFiltrados = useMemo(() => {
+  return resultados.filter(r => {
+    // Filter by exam
+    if (filtros.examenId && r.examenId !== filtros.examenId) {
+      return false;
+    }
+    
+    // Filter by control number (partial match)
+    if (filtros.numControl && 
+        !r.numControl.includes(filtros.numControl.toUpperCase())) {
+      return false;
+    }
+    
+    // Filter by academic unit
+    if (filtros.unidad && r.unidad !== filtros.unidad) {
+      return false;
+    }
+    
+    return true; // Passes all filters
+  });
+}, [resultados, filtros]);
+```
+
+<Tip>
+  The `useMemo` hook ensures filters only recalculate when `resultados` or `filtros` change, improving performance with large datasets.
+</Tip>
+
+### Clear Filters
+
+Click the **Limpiar** button to reset all filters:
+
+```javascript PanelProfesor.jsx:447
+<button onClick={() => setFiltros({
+  examenId: '', 
+  numControl: '', 
+  unidad: '', 
+  fechaInicio: '', 
+  fechaFin: '', 
+  estado: ''
+})}>
+  Limpiar
+</button>
+```
+
+## Results Table
+
+Filtered results appear in a responsive table:
+
+```javascript Table Display
+<table style={{width:'100%', borderCollapse:'collapse'}}>
+  <thead>
+    <tr style={{background: styles.accent, color:'white'}}>
+      <th>Control</th>
+      <th>Nombre</th>
+      <th>Examen</th>
+      <th>Nota</th>
+    </tr>
+  </thead>
+  <tbody>
+    {resultadosFiltrados.length > 0 ? resultadosFiltrados.map(r => (
+      <tr key={r.id}>
+        <td style={{textAlign:'center'}}>{r.numControl}</td>
+        <td>{r.nombre}</td>
+        <td>{r.examenTitulo}</td>
+        <td style={{
+          textAlign:'center', 
+          fontWeight:'bold', 
+          color: r.calificacion >= 7 ? '#28a745' : '#dc3545'
+        }}>
+          {r.calificacion.toFixed(1)}
+        </td>
+      </tr>
+    )) : (
+      <tr>
+        <td colSpan="4" style={{padding:'20px', textAlign:'center'}}>
+          Sin resultados.
+        </td>
+      </tr>
+    )}
+  </tbody>
+</table>
+```
+
+### Score Color Coding
+
+<Tabs>
+  <Tab title="Passing (≥7.0)">
+    Scores of 7.0 or higher appear in **green** (#28a745):
+    
+    ```javascript
+    color: r.calificacion >= 7 ? '#28a745' : '#dc3545'
+    ```
+  </Tab>
+  
+  <Tab title="Failing (<7.0)">
+    Scores below 7.0 appear in **red** (#dc3545):
+    
+    <Warning>
+      Students with failing grades may need intervention or additional attempts.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Exporting Results
+
+Export filtered results to CSV for external analysis or record-keeping.
+
+<Steps>
+  <Step title="Apply Filters">
+    Use the filter options to select specific results (or leave filters empty for all results).
+  </Step>
+  
+  <Step title="Click Export Button">
+    Click **📥 Reporte CSV** in the top-right corner:
+    
+    ```javascript PanelProfesor.jsx:448
+    <button onClick={handleExportarResultados}>
+      📥 Reporte CSV
+    </button>
+    ```
+  </Step>
+  
+  <Step title="File Downloaded">
+    A file named `Reporte.csv` is downloaded with your filtered results.
+  </Step>
+</Steps>
+
+### Export Format
+
+```javascript Export Implementation
+const handleExportarResultados = () => {
+  if (resultadosFiltrados.length === 0) {
+    return alert("Sin datos");
+  }
+  
+  let csvContent = "data:text/csv;charset=utf-8,Control,Nombre,Unidad,Examen,Calificacion,Fecha\n";
+  
+  resultadosFiltrados.forEach(r => {
+    const clean = (t) => t ? `"${t.toString().replace(/"/g, '""')}"` : "";
+    csvContent += [
+      clean(r.numControl), 
+      clean(r.nombre), 
+      clean(r.unidad), 
+      clean(r.examenTitulo), 
+      r.calificacion.toFixed(2), 
+      new Date(r.fecha).toLocaleDateString()
+    ].join(",") + "\n";
+  });
+  
+  const link = document.createElement("a");
+  link.href = encodeURI(csvContent);
+  link.download = "Reporte.csv";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+```
+
+### CSV Columns
+
+<ResponseField name="Control" type="string">
+  Student control number
+</ResponseField>
+
+<ResponseField name="Nombre" type="string">
+  Student full name
+</ResponseField>
+
+<ResponseField name="Unidad" type="string">
+  Academic unit
+</ResponseField>
+
+<ResponseField name="Examen" type="string">
+  Exam title
+</ResponseField>
+
+<ResponseField name="Calificacion" type="number">
+  Score formatted to 2 decimal places
+</ResponseField>
+
+<ResponseField name="Fecha" type="string">
+  Submission date in locale format (e.g., "3/10/2026")
+</ResponseField>
+
+<Tip>
+  Special characters and quotes in names are automatically escaped using CSV standard double-quote escaping.
+</Tip>
+
+## Deleting Results
+
+<Warning>
+  The current implementation does not include a delete function for individual results in the UI. This is intentional to maintain academic integrity and prevent accidental data loss.
+</Warning>
+
+If you need to remove a result, use the Firebase Console:
+
+```javascript Delete Function (Not Exposed in UI)
+const eliminarResultado = async (id) => {
+  if(!confirm("¿Eliminar?")) return;
+  await deleteDoc(doc(db, "resultados", id));
+  cargarResultados();
+};
+```
+
+## Performance Considerations
+
+<AccordionGroup>
+  <Accordion title="On-Demand Loading">
+    Results are only loaded when you click the **Resultados** tab:
+    
+    ```javascript
+    setCargandoResultados(true);
+    // ... load data ...
+    setCargandoResultados(false);
+    ```
+    
+    This prevents unnecessary database queries when teachers are working in other sections.
+  </Accordion>
+  
+  <Accordion title="Memoized Filtering">
+    Filters use `useMemo` to avoid recalculating on every render:
+    
+    ```javascript
+    const resultadosFiltrados = useMemo(() => {
+      return resultados.filter(/* ... */);
+    }, [resultados, filtros]);
+    ```
+    
+    This is especially important for large result sets (100+ records).
+  </Accordion>
+  
+  <Accordion title="Indexed Queries">
+    The results query uses Firestore's `orderBy` which requires an index:
+    
+    ```javascript
+    query(collection(db, "resultados"), orderBy("fecha", "desc"))
+    ```
+    
+    Make sure this index exists in your Firebase Console.
+  </Accordion>
+</AccordionGroup>
+
+## Analytics and Insights
+
+While the app doesn't provide built-in analytics, you can analyze exported CSV data:
+
+<CardGroup cols={2}>
+  <Card title="Average Scores" icon="calculator">
+    Calculate average scores per exam or unit using spreadsheet software
+  </Card>
+  
+  <Card title="Pass/Fail Rates" icon="percent">
+    Count students above/below 7.0 threshold
+  </Card>
+  
+  <Card title="Attempt Tracking" icon="repeat">
+    Group by numControl to see multiple attempts
+  </Card>
+  
+  <Card title="Time Analysis" icon="clock">
+    Analyze submission timestamps to identify peak testing times
+  </Card>
+</CardGroup>
+
+## Common Queries
+
+<AccordionGroup>
+  <Accordion title="Find All Attempts by a Student">
+    Filter by control number to see all exams taken by a specific student:
+    
+    ```javascript
+    filtros.numControl = "123W1041"
+    ```
+  </Accordion>
+  
+  <Accordion title="View Exam Performance">
+    Filter by exam to see all student results for one assessment:
+    
+    ```javascript
+    filtros.examenId = "specific-exam-id"
+    ```
+  </Accordion>
+  
+  <Accordion title="Unit Comparison">
+    Export results for each unit separately, then compare average scores.
+  </Accordion>
+  
+  <Accordion title="Identify At-Risk Students">
+    Filter for failing scores (red-colored results) and reach out for support.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<Card title="Print Exams" icon="print" href="/teachers/printing-exams">
+  Learn how to print exams and answer keys for paper-based testing
+</Card>

@@ -1,0 +1,521 @@
+---
+title: Viewing Results
+description: Access and understand your exam results, including detailed answer breakdown and PDF exports
+icon: chart-bar
+---
+
+## Results Overview
+
+After submitting an exam, you receive immediate feedback with your grade and detailed answer breakdown. Results include your score, correct/incorrect answers, and optionally a downloadable PDF certificate.
+
+## Results Screen
+
+### On-Screen Display
+
+When you complete an exam (`fase === 'finalizado'`), you'll see:
+
+<Steps>
+  <Step title="Success Message">
+    **"¡Examen Enviado!"** confirmation at the top of the screen
+  </Step>
+
+  <Step title="Grade Display">
+    Your final grade displayed in large text:
+    - Font size: 4rem
+    - Shows one decimal place (e.g., 8.5)
+    - Color: Theme accent color
+    - Label: "Calificación Final"
+  </Step>
+
+  <Step title="PDF Option">
+    If enabled by instructor, a download/print button appears with the text:
+    
+    **"📄 Descargar/Imprimir PDF"**
+  </Step>
+
+  <Step title="Navigation">
+    Link to return home: "Volver al Inicio"
+  </Step>
+</Steps>
+
+### Grade Calculation
+
+Your grade is calculated automatically using this formula:
+
+```javascript
+let aciertos = 0;
+preguntasAleatorias.forEach(p => { 
+  if (respuestas[p.texto] === p.correcta) aciertos++; 
+});
+
+const nota = preguntasAleatorias.length > 0 
+  ? (aciertos / preguntasAleatorias.length) * 10 
+  : 0;
+```
+
+**Scale:** 0 to 10
+- 10 questions, 10 correct = 10.0
+- 10 questions, 8 correct = 8.0
+- 10 questions, 5 correct = 5.0
+
+<Note>
+  Grades are displayed with one decimal place precision (e.g., 7.5, 8.0, 9.2)
+</Note>
+
+## PDF Export
+
+### When PDF is Available
+
+The PDF download option appears only if:
+```javascript
+examenInfo.permitirImpresion === true
+```
+
+If enabled, you'll see:
+- A blue button: **"📄 Descargar/Imprimir PDF"**
+- Clicking this button triggers: `window.print()`
+- Your browser's print dialog opens
+- You can save as PDF or print physically
+
+### When PDF is Disabled
+
+If the instructor has disabled PDF exports:
+
+```
+"La impresión de resultados está desactivada."
+```
+<Warning>
+  You can still view all results on-screen, but cannot download or print them.
+</Warning>
+
+## PDF Content Structure
+
+When you print or download the PDF, it includes:
+
+### 1. Official Header (EncabezadoPDF)
+
+The PDF header displays institutional information:
+
+**Logo and Title:**
+- Instituto Tecnológico Superior de Zongolica logo
+- Institution name
+- Your academic unit
+
+**Exam Information Table:**
+
+| Field | Content |
+|-------|--------|
+| **Asignatura** | Subject name from exam configuration |
+| **Opción** | Exam type: Diagnóstico ( X ) / 1ª oportunidad ( X ) / 2ª oportunidad ( X ) |
+| **Unidad** | Unit number from exam |
+| **Tema** | Topic/theme from exam |
+| **Ingeniería** | Engineering program: "Ingeniería en Sistemas Computacionales" |
+| **Docente** | Instructor name |
+
+**Student Information Row:**
+
+| Nombre del Alumno(a) | No. De Control | Fecha de aplicación | Calificación |
+|---------------------|----------------|---------------------|-------------|
+| Your full name | Your control # | Submission date | **Final grade** |
+
+<Note>
+  The grade in the PDF is displayed in bold, 12pt font with 1 decimal place.
+</Note>
+
+### 2. Detailed Results Table
+
+After the header, the PDF includes a complete answer breakdown:
+
+**Table Structure:**
+
+```html
+<h3>Detalle de Resultados:</h3>
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Pregunta</th>
+      <th>Tu Respuesta</th>
+      <th>Correcta</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- One row per question -->
+  </tbody>
+</table>
+```
+
+**For Each Question:**
+
+| Column | Content | Formatting |
+|--------|---------|------------|
+| **#** | Question number (1, 2, 3...) | Plain text |
+| **Pregunta** | Question text | Plain text |
+| **Tu Respuesta** | Your selected answer | **Red + bold** if wrong, normal if correct |
+| **Correcta** | The correct answer | Plain text |
+
+**Answer Highlighting:**
+```javascript
+const esCorrecta = respuestas[p.texto] === p.correcta;
+// If incorrect:
+color: 'red', fontWeight: 'bold'
+```
+
+**Unanswered Questions:**
+If you didn't answer a question, the table shows:
+```
+"(Sin responder)"
+```
+
+<Warning>
+  Incorrect answers are highlighted in **red and bold** to help you identify areas for improvement.
+</Warning>
+
+### 3. Signature Section
+
+At the bottom of the PDF:
+
+```
+___________________________
+     Firma del Alumno
+```
+
+A signature line for official documentation purposes.
+
+## Print Styling
+
+The application uses CSS classes to control what appears in print vs. screen:
+
+### `.no-print` Class
+
+Elements that appear ONLY on screen (not in PDF):
+- Success message and grade display
+- Download button
+- Navigation links
+- Exam interface during taking
+
+### `.hoja-examen` Class
+
+Elements that appear ONLY in print/PDF:
+- Official header with logo
+- Results table
+- Signature line
+
+**Implementation:**
+```jsx
+{/* On-screen only */}
+<div className="no-print">
+  <h1>¡Examen Enviado!</h1>
+  <div style={{ fontSize: '4rem' }}>{calificacion.toFixed(1)}</div>
+</div>
+
+{/* Print/PDF only */}
+<div className="hoja-examen">
+  <EncabezadoPDF {...props} />
+  <table>...</table>
+</div>
+```
+
+<Note>
+  When you click "Descargar/Imprimir PDF", only the `.hoja-examen` content is included in the output.
+</Note>
+
+## Understanding Your Results
+
+### Grade Interpretation
+
+**Passing Grade:** Typically 7.0 or higher (may vary by institution)
+
+**Grade Ranges:**
+- **9.0 - 10.0**: Excellent
+- **8.0 - 8.9**: Very Good
+- **7.0 - 7.9**: Good (Passing)
+- **6.0 - 6.9**: Satisfactory (May be passing, check institutional policy)
+- **0.0 - 5.9**: Needs Improvement (Failing)
+
+### Analyzing Your Performance
+
+<AccordionGroup>
+  <Accordion title="Review incorrect answers">
+    In the detailed results table, look for answers marked in **red and bold**. These are the questions you answered incorrectly.
+    
+    Compare your answer with the correct answer to understand your mistakes.
+  </Accordion>
+
+  <Accordion title="Identify unanswered questions">
+    Questions showing "(Sin responder)" were left blank. These automatically count as incorrect.
+    
+    **Tip:** Always answer all questions, even if you're unsure. You have a chance of getting it right!
+  </Accordion>
+
+  <Accordion title="Pattern recognition">
+    Look for patterns in your incorrect answers:
+    - Are they from a specific topic?
+    - Did you misread the question?
+    - Were they calculation errors?
+    
+    This helps you focus your study efforts.
+  </Accordion>
+
+  <Accordion title="Track improvement">
+    If you have multiple attempts:
+    - Compare grades across attempts
+    - Note which concepts you've improved on
+    - Identify persistent weak areas
+  </Accordion>
+</AccordionGroup>
+
+## Result Storage
+
+### What Gets Saved
+
+Your exam results are permanently stored in the Firestore database:
+
+```javascript
+await addDoc(collection(db, "resultados"), { 
+  examenId: id,
+  examenTitulo: examenInfo.titulo,
+  nombre: nombre,
+  numControl: numControl,
+  unidad: unidad,
+  calificacion: nota,
+  fecha: new Date().toISOString()
+});
+```
+
+**Stored Information:**
+- Exam identifier and title
+- Your name and control number
+- Academic unit
+- Final grade (numerical)
+- Submission timestamp
+
+<Warning>
+  **Note:** Individual question responses are NOT stored in the database. Only your final grade is saved.
+  
+  The detailed answer breakdown is only available immediately after submission. If you need to keep this information, download the PDF when available.
+</Warning>
+
+### Instructors Can View
+
+Your instructor has access to:
+- Your control number
+- Your name
+- Academic unit
+- Final grade
+- Submission date/time
+- Number of attempts taken
+
+Instructors can filter and export results for all students.
+
+## Multiple Attempts
+
+### Tracking Attempts
+
+The system tracks how many times you've taken each exam:
+
+```javascript
+const q = query(
+  collection(db, "resultados"), 
+  where("examenId", "==", id), 
+  where("numControl", "==", numControl.toUpperCase())
+);
+const snap = await getDocs(q);
+const intentos = snap.size;
+```
+
+**Each submission:**
+- Creates a new record in the database
+- Counts toward your attempt limit
+- Is visible to your instructor
+
+### Viewing Multiple Results
+
+If you take an exam multiple times:
+- Each attempt is saved separately
+- Instructors can see all attempts
+- Your highest/latest grade may be used (depends on institutional policy)
+
+<Note>
+  **Important:** Once you reach the maximum allowed attempts, you cannot retake the exam. Plan carefully before submitting.
+</Note>
+
+## Date and Time Information
+
+### Timestamp Format
+
+Submission dates are stored in ISO 8601 format:
+```javascript
+fecha: new Date().toISOString()
+// Example: "2026-03-10T15:30:45.123Z"
+```
+
+### Display Format
+
+On the PDF, dates are displayed in Mexican locale:
+```javascript
+const fechaStr = fecha 
+  ? new Date(fecha).toLocaleDateString('es-MX') 
+  : "___/___/___";
+// Example: "10/03/2026"
+```
+
+## Exam Type Indicators
+
+The PDF header shows which type of exam you took:
+
+**Three Options:**
+1. **Diagnóstico** - Diagnostic exam
+2. **1ª oportunidad** - First opportunity
+3. **2ª oportunidad** - Second opportunity
+
+The PDF displays an "X" next to the applicable option:
+
+```javascript
+const isDiag = opcion === 'diagnostico' ? 'X' : '_';
+const is1ra = opcion === '1ra' ? 'X' : '_';
+const is2da = opcion === '2da' ? 'X' : '_';
+```
+
+**Example Display:**
+```
+Opción: Diagnóstico ( _ )   1ª oportunidad ( X )   2ª oportunidad ( _ )
+```
+
+## Troubleshooting Results
+
+<AccordionGroup>
+  <Accordion title="PDF button doesn't appear">
+    The instructor has disabled PDF printing for this exam. This is a configuration option and not an error.
+    
+    You can still view your results on screen.
+  </Accordion>
+
+  <Accordion title="Printing shows blank page">
+    Try these steps:
+    1. Wait a few seconds after clicking the print button
+    2. Check your browser's print preview
+    3. Ensure CSS print styles are enabled
+    4. Try a different browser (Chrome recommended)
+  </Accordion>
+
+  <Accordion title="Grade seems incorrect">
+    Remember:
+    - Grade = (Correct Answers / Total Questions) × 10
+    - Unanswered questions count as incorrect
+    - Check the detailed table for answer comparison
+    
+    If you still believe there's an error, contact your instructor with:
+    - Your control number
+    - Exam name
+    - Submission date/time
+    - Specific question(s) in dispute
+  </Accordion>
+
+  <Accordion title="Cannot return to home">
+    Click the "Volver al Inicio" link at the bottom of the results screen.
+    
+    If the link doesn't work, manually navigate to the home page URL.
+  </Accordion>
+
+  <Accordion title="Results don't show all questions">
+    The exam may have been configured with a question limit. If the exam bank has 50 questions but shows only 20, this is intentional.
+    
+    Your results table will only show the questions that were presented to you.
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Download Immediately" icon="download">
+    If PDF downloads are enabled, download your results immediately after submission.
+    
+    You cannot access the detailed answer breakdown later.
+  </Card>
+
+  <Card title="Review Carefully" icon="magnifying-glass">
+    Take time to review each incorrect answer.
+    
+    Understanding mistakes is key to improving future performance.
+  </Card>
+
+  <Card title="Keep Records" icon="folder-open">
+    Save your PDF results for:
+    - Personal study records
+    - Dispute resolution
+    - Academic portfolio
+    - Future reference
+  </Card>
+
+  <Card title="Note Patterns" icon="chart-line">
+    If taking multiple attempts:
+    - Track which areas you improve
+    - Identify persistent weak spots
+    - Adjust study strategies accordingly
+  </Card>
+</CardGroup>
+
+## Privacy and Access
+
+### Your Data
+
+**You can see:**
+- Your own exam results immediately after submission
+- Detailed answer breakdown (on-screen only)
+- Your final grade
+- Submission timestamp
+
+**You cannot see:**
+- Other students' results
+- Historical attempts (only current one on screen)
+- Question bank or unused questions
+
+### Instructor Access
+
+Instructors can view:
+- All student results for their exams
+- Aggregate statistics
+- Filtered views by academic unit, control number, etc.
+- Export data to CSV
+
+<Note>
+  Your individual question responses are not stored long-term. Only your final numerical grade is saved to the database.
+</Note>
+
+## Academic Integrity
+
+### Result Authenticity
+
+The PDF includes:
+- Official institutional header with logo
+- Your control number for verification
+- Submission date/time
+- Instructor name
+- Academic unit
+
+**This makes the PDF suitable for:**
+- Official academic records
+- Course documentation
+- Credit verification
+
+### No Editing
+
+<Warning>
+  Results are final once submitted. You cannot edit or retake the exam after submission (unless you have remaining attempts).
+  
+  Double-check your answers before clicking "Finalizar y Enviar".
+</Warning>
+
+## Summary
+
+The Examen App provides comprehensive result viewing with:
+
+✅ Immediate grade feedback
+✅ Detailed answer-by-answer breakdown
+✅ Professional PDF export (when enabled)
+✅ Permanent storage in instructor's records
+✅ Clear visual indicators for correct/incorrect answers
+✅ Official documentation suitable for academic use
+
+Use your results to identify areas for improvement and track your academic progress over time.

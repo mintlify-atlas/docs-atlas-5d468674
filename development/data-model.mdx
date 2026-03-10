@@ -1,0 +1,759 @@
+---
+title: 'Data Model'
+description: 'Complete Firestore database schema and data structures'
+icon: 'database'
+---
+
+## Overview
+
+The Examen App uses Firebase Firestore as its NoSQL database. The data model consists of three main collections that handle exam management, student results, and teacher authorization.
+
+<Note>
+  All collections use Firestore's auto-generated document IDs for primary keys.
+</Note>
+
+## Collections Architecture
+
+```mermaid
+erDiagram
+    EXAMENES ||--o{ RESULTADOS : generates
+    DOCENTES ||--o{ EXAMENES : creates
+    
+    EXAMENES {
+        string id PK
+        string nombreExamen
+        string asignatura
+        string titulo
+        string unidad
+        string tema
+        string opcion
+        array preguntas
+        number limite
+        number intentosMaximos
+        boolean permitirImpresion
+        string docenteNombre
+        string docenteEmail
+    }
+    
+    RESULTADOS {
+        string id PK
+        string examenId FK
+        string examenTitulo
+        string nombre
+        string numControl
+        string unidad
+        number calificacion
+        string fecha
+    }
+    
+    DOCENTES {
+        string id PK
+        string nombre
+        string email
+        string fechaRegistro
+    }
+```
+
+---
+
+## Collection: `examenes`
+
+<Info>
+  Stores all exam configurations, questions, and metadata created by teachers.
+</Info>
+
+### Document Structure
+
+<CodeGroup>
+```javascript Schema
+{
+  // Document ID (auto-generated)
+  id: "abc123xyz",
+  
+  // Exam identification
+  nombreExamen: "Diagnóstico",
+  asignatura: "Matemáticas",
+  titulo: "Diagnóstico - Matemáticas", // Legacy field (backup)
+  
+  // Academic metadata
+  unidad: "Unidad 1",
+  tema: "Álgebra Básica",
+  opcion: "diagnostico" | "1ra" | "2da",
+  
+  // Question bank
+  preguntas: [
+    {
+      texto: "¿Cuánto es 2 + 2?",
+      opciones: ["3", "4", "5", "6"],
+      correcta: "4"
+    },
+    // ... more questions
+  ],
+  
+  // Configuration
+  limite: 10,              // Number of random questions (0 = all)
+  intentosMaximos: 2,      // Maximum attempts per student
+  permitirImpresion: true, // Allow PDF generation
+  
+  // Teacher information
+  docenteNombre: "Dr. Juan Pérez",
+  docenteEmail: "juan.perez@itsz.edu.mx"
+}
+```
+
+```javascript Example Document
+{
+  "id": "exam_2026_math_01",
+  "nombreExamen": "Examen Parcial 1",
+  "asignatura": "Cálculo Diferencial",
+  "titulo": "Examen Parcial 1 - Cálculo Diferencial",
+  "unidad": "Unidad 1",
+  "tema": "Límites y Continuidad",
+  "opcion": "1ra",
+  "preguntas": [
+    {
+      "texto": "El límite de f(x) cuando x tiende a 0 es:",
+      "opciones": [
+        "0",
+        "1",
+        "infinito",
+        "no existe"
+      ],
+      "correcta": "1"
+    },
+    {
+      "texto": "Una función es continua si:",
+      "opciones": [
+        "El límite existe",
+        "Es derivable",
+        "El límite existe y es igual al valor de la función",
+        "Todas las anteriores"
+      ],
+      "correcta": "El límite existe y es igual al valor de la función"
+    }
+  ],
+  "limite": 20,
+  "intentosMaximos": 2,
+  "permitirImpresion": true,
+  "docenteNombre": "Dr. María González",
+  "docenteEmail": "maria.gonzalez@itsz.edu.mx"
+}
+```
+</CodeGroup>
+
+### Field Specifications
+
+<Tabs>
+  <Tab title="Required Fields">
+    | Field | Type | Description |
+    |-------|------|-------------|
+    | `nombreExamen` | String | Short exam name (e.g., "Diagnóstico") |
+    | `asignatura` | String | Subject name (e.g., "Matemáticas") |
+    | `titulo` | String | Combined display name |
+    | `preguntas` | Array | Question bank (can be empty initially) |
+    | `limite` | Number | Questions to show (0 = all) |
+    | `intentosMaximos` | Number | Max attempts per student |
+    | `permitirImpresion` | Boolean | Enable PDF download |
+    | `docenteEmail` | String | Creator's email |
+  </Tab>
+  
+  <Tab title="Optional Fields">
+    | Field | Type | Default | Description |
+    |-------|------|---------|-------------|
+    | `unidad` | String | `""` | Academic unit/chapter |
+    | `tema` | String | `""` | Specific topic |
+    | `opcion` | String | `"1ra"` | Exam type |
+    | `docenteNombre` | String | `"Sin Asignar"` | Creator's display name |
+  </Tab>
+  
+  <Tab title="Question Object">
+    Each question in the `preguntas` array:
+    
+    ```typescript
+    interface Pregunta {
+      texto: string;           // Question text
+      opciones: [string, string, string, string]; // Exactly 4 options
+      correcta: string;        // Must match one option exactly
+    }
+    ```
+    
+    <Warning>
+      The `correcta` field must contain the **exact text** of one option, not an index.
+    </Warning>
+  </Tab>
+</Tabs>
+
+### CRUD Operations
+
+<AccordionGroup>
+  <Accordion title="Create Exam" icon="plus">
+    ```javascript
+    import { collection, addDoc } from 'firebase/firestore';
+    
+    const crearExamen = async () => {
+      await addDoc(collection(db, "examenes"), {
+        nombreExamen: "Diagnóstico",
+        asignatura: "Matemáticas",
+        titulo: "Diagnóstico - Matemáticas",
+        unidad: "",
+        tema: "",
+        opcion: "diagnostico",
+        preguntas: [],
+        limite: 0,
+        intentosMaximos: 1,
+        permitirImpresion: false,
+        docenteNombre: "Dr. Juan Pérez",
+        docenteEmail: "juan@itsz.edu.mx"
+      });
+    };
+    ```
+  </Accordion>
+  
+  <Accordion title="Read Exam" icon="eye">
+    ```javascript
+    import { doc, getDoc } from 'firebase/firestore';
+    
+    const obtenerExamen = async (examenId) => {
+      const docRef = doc(db, "examenes", examenId);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() };
+      }
+      return null;
+    };
+    ```
+  </Accordion>
+  
+  <Accordion title="Update Questions" icon="pen">
+    ```javascript
+    import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+    
+    // Add question
+    const agregarPregunta = async (examenId, pregunta) => {
+      const ref = doc(db, "examenes", examenId);
+      await updateDoc(ref, {
+        preguntas: arrayUnion({
+          texto: pregunta.texto,
+          opciones: [pregunta.op1, pregunta.op2, pregunta.op3, pregunta.op4],
+          correcta: pregunta.correcta
+        })
+      });
+    };
+    
+    // Replace all questions
+    const reemplazarPreguntas = async (examenId, nuevasPreguntas) => {
+      const ref = doc(db, "examenes", examenId);
+      await updateDoc(ref, { preguntas: nuevasPreguntas });
+    };
+    ```
+  </Accordion>
+  
+  <Accordion title="Update Configuration" icon="gear">
+    ```javascript
+    const actualizarConfig = async (examenId) => {
+      await updateDoc(doc(db, "examenes", examenId), {
+        limite: 15,
+        intentosMaximos: 3,
+        permitirImpresion: true
+      });
+    };
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Queries
+
+<CodeGroup>
+```javascript Get All Exams
+import { collection, getDocs } from 'firebase/firestore';
+
+const snap = await getDocs(collection(db, "examenes"));
+const examenes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+```
+
+```javascript Get Exams by Teacher
+import { query, where } from 'firebase/firestore';
+
+const q = query(
+  collection(db, "examenes"),
+  where("docenteEmail", "==", "juan@itsz.edu.mx")
+);
+const snap = await getDocs(q);
+```
+</CodeGroup>
+
+---
+
+## Collection: `resultados`
+
+<Info>
+  Stores individual exam attempt results from students.
+</Info>
+
+### Document Structure
+
+<CodeGroup>
+```javascript Schema
+{
+  // Document ID (auto-generated)
+  id: "result_xyz789",
+  
+  // Exam reference
+  examenId: "exam_2026_math_01",  // Foreign key to examenes collection
+  examenTitulo: "Diagnóstico - Matemáticas",
+  
+  // Student information
+  nombre: "Juan Pérez López",
+  numControl: "123W1041",          // Format: ###W####
+  unidad: "Zongolica",             // Academic unit
+  
+  // Results
+  calificacion: 8.5,               // Grade (0-10 scale)
+  fecha: "2026-03-10T15:30:00.000Z" // ISO 8601 timestamp
+}
+```
+
+```javascript Example Document
+{
+  "id": "res_20260310_001",
+  "examenId": "exam_2026_math_01",
+  "examenTitulo": "Examen Parcial 1 - Cálculo Diferencial",
+  "nombre": "María Fernanda García Hernández",
+  "numControl": "234W5678",
+  "unidad": "Tequila",
+  "calificacion": 9.2,
+  "fecha": "2026-03-10T14:25:33.127Z"
+}
+```
+</CodeGroup>
+
+### Field Specifications
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `examenId` | String | Required, FK | References `examenes.id` |
+| `examenTitulo` | String | Required | Denormalized for display |
+| `nombre` | String | Required | Student full name |
+| `numControl` | String | Required, Pattern: `/^\d{3}W\d{4}$/` | Student ID |
+| `unidad` | String | Required, Enum | One of 7 academic units |
+| `calificacion` | Number | Required, Range: 0-10 | Final grade |
+| `fecha` | String | Required, ISO 8601 | Submission timestamp |
+
+<Note>
+  The `numControl` format is strictly validated: 3 digits + "W" + 4 digits (e.g., "123W1041").
+</Note>
+
+### Academic Units (Enum)
+
+```javascript
+const UNIDADES_ACADEMICAS = [
+  "Zongolica",
+  "Tequila",
+  "Nogales",
+  "Acultzinapa",
+  "Cuichapa",
+  "Tezonapa",
+  "Tehuipango"
+];
+```
+
+### CRUD Operations
+
+<AccordionGroup>
+  <Accordion title="Create Result" icon="check">
+    ```javascript
+    import { collection, addDoc } from 'firebase/firestore';
+    
+    const guardarResultado = async (resultado) => {
+      await addDoc(collection(db, "resultados"), {
+        examenId: resultado.examenId,
+        examenTitulo: resultado.examenTitulo,
+        nombre: resultado.nombre,
+        numControl: resultado.numControl.toUpperCase(),
+        unidad: resultado.unidad,
+        calificacion: resultado.calificacion,
+        fecha: new Date().toISOString()
+      });
+    };
+    ```
+  </Accordion>
+  
+  <Accordion title="Check Attempts" icon="calculator">
+    ```javascript
+    import { query, where, getDocs } from 'firebase/firestore';
+    
+    const contarIntentos = async (examenId, numControl) => {
+      const q = query(
+        collection(db, "resultados"),
+        where("examenId", "==", examenId),
+        where("numControl", "==", numControl.toUpperCase())
+      );
+      const snap = await getDocs(q);
+      return snap.size; // Number of previous attempts
+    };
+    ```
+  </Accordion>
+  
+  <Accordion title="Delete Result" icon="trash">
+    ```javascript
+    import { doc, deleteDoc } from 'firebase/firestore';
+    
+    const eliminarResultado = async (resultadoId) => {
+      await deleteDoc(doc(db, "resultados", resultadoId));
+    };
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Queries
+
+<CodeGroup>
+```javascript Get All Results (Sorted)
+import { query, orderBy } from 'firebase/firestore';
+
+const q = query(
+  collection(db, "resultados"),
+  orderBy("fecha", "desc")
+);
+const snap = await getDocs(q);
+```
+
+```javascript Filter by Exam
+const q = query(
+  collection(db, "resultados"),
+  where("examenId", "==", "exam_2026_math_01")
+);
+```
+
+```javascript Filter by Student
+const q = query(
+  collection(db, "resultados"),
+  where("numControl", "==", "123W1041")
+);
+```
+
+```javascript Filter by Academic Unit
+const q = query(
+  collection(db, "resultados"),
+  where("unidad", "==", "Zongolica")
+);
+```
+
+```javascript Composite Filter
+const q = query(
+  collection(db, "resultados"),
+  where("examenId", "==", "exam_2026_math_01"),
+  where("numControl", "==", "123W1041")
+);
+```
+</CodeGroup>
+
+### Grade Calculation
+
+```javascript
+const calcularCalificacion = (respuestas, preguntasAleatorias) => {
+  let aciertos = 0;
+  
+  preguntasAleatorias.forEach(pregunta => {
+    if (respuestas[pregunta.texto] === pregunta.correcta) {
+      aciertos++;
+    }
+  });
+  
+  const calificacion = preguntasAleatorias.length > 0
+    ? (aciertos / preguntasAleatorias.length) * 10
+    : 0;
+  
+  return parseFloat(calificacion.toFixed(2));
+};
+```
+
+---
+
+## Collection: `docentes`
+
+<Info>
+  Whitelist of authorized teachers who can register accounts.
+</Info>
+
+### Document Structure
+
+<CodeGroup>
+```javascript Schema
+{
+  // Document ID (auto-generated)
+  id: "teacher_abc123",
+  
+  // Teacher information
+  nombre: "Dr. Juan Pérez López",
+  email: "juan.perez@itsz.edu.mx",
+  
+  // Metadata
+  fechaRegistro: "2026-01-15T10:00:00.000Z"
+}
+```
+
+```javascript Example Document
+{
+  "id": "doc_20260115_001",
+  "nombre": "Dra. María González Ramírez",
+  "email": "maria.gonzalez@itsz.edu.mx",
+  "fechaRegistro": "2026-01-15T10:30:45.234Z"
+}
+```
+</CodeGroup>
+
+### Field Specifications
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| `nombre` | String | Required | Teacher's full name with title |
+| `email` | String | Required, Unique | Institutional email |
+| `fechaRegistro` | String | Required, ISO 8601 | When added to whitelist |
+
+<Warning>
+  The `email` field is used for authentication whitelist. Only emails in this collection can register accounts.
+</Warning>
+
+### CRUD Operations
+
+<AccordionGroup>
+  <Accordion title="Add Teacher" icon="user-plus">
+    ```javascript
+    import { collection, addDoc } from 'firebase/firestore';
+    
+    const agregarDocente = async (nombre, email) => {
+      await addDoc(collection(db, "docentes"), {
+        nombre,
+        email,
+        fechaRegistro: new Date().toISOString()
+      });
+    };
+    ```
+  </Accordion>
+  
+  <Accordion title="Check Authorization" icon="shield-check">
+    ```javascript
+    import { query, where } from 'firebase/firestore';
+    
+    const estaAutorizado = async (email) => {
+      const q = query(
+        collection(db, "docentes"),
+        where("email", "==", email)
+      );
+      const snap = await getDocs(q);
+      return !snap.empty;
+    };
+    ```
+  </Accordion>
+  
+  <Accordion title="Remove Teacher" icon="user-minus">
+    ```javascript
+    import { doc, deleteDoc } from 'firebase/firestore';
+    
+    const eliminarDocente = async (docenteId) => {
+      await deleteDoc(doc(db, "docentes", docenteId));
+    };
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Queries
+
+<CodeGroup>
+```javascript Get All Teachers
+const snap = await getDocs(collection(db, "docentes"));
+const docentes = snap.docs.map(d => ({
+  id: d.id,
+  ...d.data()
+}));
+```
+
+```javascript Find Teacher by Email
+const q = query(
+  collection(db, "docentes"),
+  where("email", "==", "juan@itsz.edu.mx")
+);
+const snap = await getDocs(q);
+const docente = snap.docs[0]?.data();
+```
+</CodeGroup>
+
+---
+
+## Relationships
+
+### Exam → Results (One-to-Many)
+
+```javascript
+// Get all results for an exam
+const obtenerResultadosDeExamen = async (examenId) => {
+  const q = query(
+    collection(db, "resultados"),
+    where("examenId", "==", examenId),
+    orderBy("fecha", "desc")
+  );
+  return await getDocs(q);
+};
+```
+
+### Teacher → Exams (One-to-Many)
+
+```javascript
+// Get all exams created by a teacher
+const obtenerExamenesDeDocente = async (docenteEmail) => {
+  const q = query(
+    collection(db, "examenes"),
+    where("docenteEmail", "==", docenteEmail)
+  );
+  return await getDocs(q);
+};
+```
+
+### Student → Results (One-to-Many)
+
+```javascript
+// Get all attempts by a student
+const obtenerHistorialEstudiante = async (numControl) => {
+  const q = query(
+    collection(db, "resultados"),
+    where("numControl", "==", numControl.toUpperCase()),
+    orderBy("fecha", "desc")
+  );
+  return await getDocs(q);
+};
+```
+
+---
+
+## Firebase Configuration
+
+### Connection Setup
+
+<CodeGroup>
+```javascript src/firebase.js
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBDWQVihQ8IwPaUvSIFOK4xhpuD8N5xkGo",
+  authDomain: "examen-react-2026.firebaseapp.com",
+  projectId: "examen-react-2026",
+  storageBucket: "examen-react-2026.firebasestorage.app",
+  messagingSenderId: "1034837524422",
+  appId: "1:1034837524422:web:30cebed3f5e241fc77fcc7"
+};
+
+const app = initializeApp(firebaseConfig);
+
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+```
+</CodeGroup>
+
+<Warning>
+  This configuration includes production credentials. In a real deployment, use environment variables.
+</Warning>
+
+### Security Rules (Recommended)
+
+```javascript firestore.rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Exams: Teachers only
+    match /examenes/{examenId} {
+      allow read: if true; // Public read for students
+      allow write: if request.auth != null; // Auth required to modify
+    }
+    
+    // Results: Authenticated users
+    match /resultados/{resultadoId} {
+      allow read: if request.auth != null;
+      allow create: if true; // Students can submit
+      allow delete: if request.auth != null;
+    }
+    
+    // Teachers: Auth required
+    match /docentes/{docenteId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+  }
+}
+```
+
+---
+
+## Data Validation
+
+### Student ID Format
+
+```javascript
+const REGEX_CONTROL = /^\d{3}[Ww]\d{4}$/;
+
+const validarNumControl = (numControl) => {
+  if (!REGEX_CONTROL.test(numControl)) {
+    throw new Error('Formato inválido. Use: ###W#### (Ej: 123W1041)');
+  }
+  return numControl.toUpperCase();
+};
+```
+
+### Grade Range
+
+```javascript
+const validarCalificacion = (calificacion) => {
+  if (calificacion < 0 || calificacion > 10) {
+    throw new Error('Calificación debe estar entre 0 y 10');
+  }
+  return parseFloat(calificacion.toFixed(2));
+};
+```
+
+### Academic Unit
+
+```javascript
+const validarUnidad = (unidad) => {
+  const UNIDADES_VALIDAS = [
+    "Zongolica", "Tequila", "Nogales",
+    "Acultzinapa", "Cuichapa", "Tezonapa", "Tehuipango"
+  ];
+  
+  if (!UNIDADES_VALIDAS.includes(unidad)) {
+    throw new Error('Unidad académica no válida');
+  }
+  return unidad;
+};
+```
+
+---
+
+## Performance Considerations
+
+<CardGroup cols={2}>
+  <Card title="Indexes" icon="gauge-high">
+    Create composite indexes for common queries:
+    - `resultados`: (`examenId`, `fecha`)
+    - `resultados`: (`examenId`, `numControl`)
+  </Card>
+  
+  <Card title="Denormalization" icon="copy">
+    `examenTitulo` is duplicated in results for faster display without joins
+  </Card>
+  
+  <Card title="Pagination" icon="list">
+    Use `limit()` and `startAfter()` for large result sets
+  </Card>
+  
+  <Card title="Caching" icon="hard-drive">
+    Enable Firestore offline persistence for better performance
+  </Card>
+</CardGroup>
+
+<Check>
+  The data model is optimized for read-heavy operations typical of exam systems.
+</Check>

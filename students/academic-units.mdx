@@ -1,0 +1,523 @@
+---
+title: Academic Units
+description: Understanding the academic units (campuses) in the ITSZ system and how they're used in the Examen App
+icon: building
+---
+
+## Overview
+
+The Examen App serves multiple academic units (campuses) within the Instituto Tecnológico Superior de Zongolica (ITSZ) system. Students must select their academic unit during exam registration for proper record-keeping and result organization.
+
+## Available Academic Units
+
+The system includes seven academic units defined in the source code:
+
+```javascript
+const UNIDADES_ACADEMICAS = [
+  "Zongolica", 
+  "Tequila", 
+  "Nogales", 
+  "Acultzinapa", 
+  "Cuichapa", 
+  "Tezonapa", 
+  "Tehuipango"
+];
+```
+
+### Unit Details
+
+<CardGroup cols={2}>
+  <Card title="Zongolica" icon="building">
+    Main campus of the Instituto Tecnológico Superior de Zongolica.
+    
+    **Type:** Primary Campus
+  </Card>
+
+  <Card title="Tequila" icon="building">
+    Academic extension unit.
+    
+    **Type:** Extension Campus
+  </Card>
+
+  <Card title="Nogales" icon="building">
+    Academic extension unit.
+    
+    **Type:** Extension Campus
+  </Card>
+
+  <Card title="Acultzinapa" icon="building">
+    Academic extension unit.
+    
+    **Type:** Extension Campus
+  </Card>
+
+  <Card title="Cuichapa" icon="building">
+    Academic extension unit.
+    
+    **Type:** Extension Campus
+  </Card>
+
+  <Card title="Tezonapa" icon="building">
+    Academic extension unit.
+    
+    **Type:** Extension Campus
+  </Card>
+
+  <Card title="Tehuipango" icon="building">
+    Academic extension unit.
+    
+    **Type:** Extension Campus
+  </Card>
+</CardGroup>
+
+## Selecting Your Academic Unit
+
+### During Registration
+
+When starting an exam, you'll see a dropdown menu labeled **"Unidad Académica"**:
+
+```jsx
+<label>Unidad Académica:</label>
+<select value={unidad} onChange={e=>setUnidad(e.target.value)} style={inputStyle}>
+  <option value="">-- Selecciona --</option>
+  {UNIDADES_ACADEMICAS.map(u=>
+    <option key={u} value={u}>{u}</option>
+  )}
+</select>
+```
+
+<Steps>
+  <Step title="Open Dropdown">
+    Click on the "Unidad Académica" dropdown menu
+  </Step>
+
+  <Step title="Select Your Campus">
+    Choose your academic unit from the list of 7 options
+  </Step>
+
+  <Step title="Verification">
+    Ensure you select the correct unit - this cannot be changed after submission
+  </Step>
+</Steps>
+
+<Warning>
+  **Important:** You must select an academic unit before the "Comenzar" (Start) button becomes active. The field is required and cannot be empty.
+</Warning>
+
+### Selection Validation
+
+The system validates that you've selected a unit:
+
+```javascript
+if (!nombre || !numControl || !unidad || errorControl) 
+  return alert("Revisa datos");
+```
+
+If you try to start without selecting a unit, you'll see an alert: **"Revisa datos"** (Check your data)
+
+## How Academic Units Are Used
+
+### 1. Result Storage
+
+Your academic unit is stored with your exam results:
+
+```javascript
+await addDoc(collection(db, "resultados"), { 
+  examenId: id,
+  examenTitulo: examenInfo.titulo,
+  nombre: nombre,
+  numControl: numControl,
+  unidad: unidad,  // ← Academic unit stored here
+  calificacion: nota,
+  fecha: new Date().toISOString()
+});
+```
+
+**Stored Field:** `unidad`
+
+**Purpose:**
+- Identifies which campus the student belongs to
+- Enables filtering and reporting by campus
+- Helps instructors organize results
+
+### 2. PDF Documentation
+
+Your academic unit appears on the official PDF header:
+
+```jsx
+<EncabezadoPDF 
+  asignatura={examenInfo.titulo} 
+  unidad={examenInfo.unidad}
+  tema={examenInfo.tema}
+  opcion={examenInfo.opcion}
+  alumnoNombre={nombre} 
+  numControl={numControl} 
+  unidadAcademica={unidad}  // ← Your selected unit
+  calificacion={calificacion}
+  fecha={new Date().toISOString()} 
+/>
+```
+
+**Display Location:**
+```html
+<div style={{ textAlign: 'center', flexGrow: 1 }}>
+  <h3>Instituto Tecnológico Superior de Zongolica</h3>
+  {unidadAcademica && 
+    <p>Unidad Académica: <strong>{unidadAcademica}</strong></p>
+  }
+</div>
+```
+
+<Note>
+  Your academic unit appears prominently on the PDF header, right below the institutional name and logo.
+</Note>
+
+### 3. Instructor Filtering
+
+Instructors can filter results by academic unit in the admin panel:
+
+```jsx
+<div style={{flex:'1 1 120px'}}>
+  <label style={{fontSize:'0.8em'}}>Unidad:</label>
+  <select 
+    value={filtros.unidad} 
+    onChange={e => setFiltros({...filtros, unidad: e.target.value})} 
+    style={{...inputStyle, width:'100%'}}
+  >
+    <option value="">Todas</option>
+    {UNIDADES_ACADEMICAS.map(u => 
+      <option key={u} value={u}>{u}</option>
+    )}
+  </select>
+</div>
+```
+
+**Filtering Logic:**
+```javascript
+const resultadosFiltrados = resultados.filter(r => {
+  if (filtros.unidad && r.unidad !== filtros.unidad) return false;
+  return true;
+});
+```
+
+This allows instructors to:
+- View results for a specific campus
+- Generate campus-specific reports
+- Compare performance across units
+- Export data filtered by campus
+
+### 4. Statistics and Reporting
+
+Academic units enable:
+- **Campus-level analytics**: Average grades per unit
+- **Enrollment tracking**: Students per campus
+- **Resource planning**: Exam usage by location
+- **Comparative analysis**: Performance between campuses
+
+## System-Wide Consistency
+
+The same `UNIDADES_ACADEMICAS` array is used in multiple files:
+
+### Examen.jsx (Student View)
+```javascript
+const UNIDADES_ACADEMICAS = [
+  "Zongolica", "Tequila", "Nogales", 
+  "Acultzinapa", "Cuichapa", "Tezonapa", "Tehuipango"
+];
+```
+
+### PanelProfesor.jsx (Instructor View)
+```javascript
+const UNIDADES_ACADEMICAS = [
+  "Zongolica", "Tequila", "Nogales", 
+  "Acultzinapa", "Cuichapa", "Tezonapa", "Tehuipango"
+];
+```
+
+<Note>
+  The academic unit list is hardcoded and consistent across all parts of the application. This ensures data integrity and prevents typos or inconsistencies.
+</Note>
+
+## Data Integrity
+
+### Why Dropdown Selection?
+
+The system uses a dropdown (not free text) because:
+
+✅ **Prevents typos**: "Zongolica" vs "Zongolica" vs "zongolica"
+✅ **Ensures consistency**: All records use exact same spelling
+✅ **Enables filtering**: Instructors can reliably filter by campus
+✅ **Data validation**: Only valid units can be selected
+✅ **Database queries**: Exact matches for querying results
+
+### Validation Flow
+
+<Steps>
+  <Step title="Initialization">
+    State initialized as empty string:
+    ```javascript
+    const [unidad, setUnidad] = useState('');
+    ```
+  </Step>
+
+  <Step title="Selection">
+    User selects from dropdown:
+    ```javascript
+    onChange={e=>setUnidad(e.target.value)}
+    ```
+  </Step>
+
+  <Step title="Validation">
+    System checks if selected:
+    ```javascript
+    if (!unidad) return alert("Revisa datos");
+    ```
+  </Step>
+
+  <Step title="Storage">
+    Exact string stored in database:
+    ```javascript
+    unidad: unidad  // e.g., "Zongolica"
+    ```
+  </Step>
+</Steps>
+
+## Common Questions
+
+<AccordionGroup>
+  <Accordion title="What if my campus isn't listed?">
+    The seven academic units listed are the official campuses in the ITSZ system. If you believe your campus should be included:
+    
+    1. Verify you're enrolled in the ITSZ system
+    2. Contact your campus administrator
+    3. They can request the addition through the system administrator
+    
+    **Note:** Only system administrators can modify the academic units list in the source code.
+  </Accordion>
+
+  <Accordion title="Can I change my academic unit after submission?">
+    **No.** Once you submit an exam, your academic unit is permanently saved with your results.
+    
+    **Important:** Double-check your selection before starting the exam.
+    
+    If you submitted with the wrong unit:
+    - Contact your instructor immediately
+    - Provide your control number and exam details
+    - They may be able to correct the record manually
+  </Accordion>
+
+  <Accordion title="Does my academic unit affect my grade?">
+    **No.** Your academic unit is used only for:
+    - Record organization
+    - Filtering and reporting
+    - Documentation on PDFs
+    
+    It does not affect:
+    - Your exam questions
+    - Grading algorithms
+    - Maximum attempts
+    - Available exams
+  </Accordion>
+
+  <Accordion title="Why does the PDF show a different unit than I selected?">
+    The PDF header actually shows TWO unit references:
+    
+    1. **Exam Unit** (`examenInfo.unidad`): The unit/chapter of course material
+    2. **Your Academic Unit** (`unidadAcademica`): Your campus
+    
+    These are different fields:
+    - Exam Unit = "Unit 3" (course content)
+    - Academic Unit = "Zongolica" (your campus)
+    
+    Make sure you're looking at the "Unidad Académica" field in the header.
+  </Accordion>
+
+  <Accordion title="Can instructors see which unit I'm from?">
+    **Yes.** Instructors can:
+    - View your academic unit in the results table
+    - Filter results to show only students from specific units
+    - Export data including academic unit information
+    
+    This is necessary for:
+    - Campus-level reporting
+    - Resource allocation
+    - Academic planning
+    
+    Your academic unit is not private information within the institutional system.
+  </Accordion>
+</AccordionGroup>
+
+## For Administrators
+
+### Adding New Academic Units
+
+If a new campus needs to be added to the system:
+
+<Steps>
+  <Step title="Update Source Code">
+    Modify the `UNIDADES_ACADEMICAS` constant in:
+    - `src/Examen.jsx`
+    - `src/PanelProfesor.jsx`
+    
+    ```javascript
+    const UNIDADES_ACADEMICAS = [
+      "Zongolica", 
+      "Tequila", 
+      "Nogales", 
+      "Acultzinapa", 
+      "Cuichapa", 
+      "Tezonapa", 
+      "Tehuipango",
+      "NewCampus"  // ← Add new unit
+    ];
+    ```
+  </Step>
+
+  <Step title="Test Changes">
+    - Verify dropdown displays new option
+    - Test exam submission with new unit
+    - Check results storage
+    - Verify PDF generation
+    - Test instructor filtering
+  </Step>
+
+  <Step title="Deploy Updates">
+    Deploy the updated application to make the new unit available to all users.
+  </Step>
+
+  <Step title="Communicate Changes">
+    Notify:
+    - Students at the new campus
+    - Instructors
+    - Administrative staff
+  </Step>
+</Steps>
+
+<Warning>
+  **Important:** Ensure the unit name is identical in both files. Any spelling difference will cause inconsistencies in filtering and reporting.
+</Warning>
+
+### Removing Academic Units
+
+<Note>
+  **Caution:** Do not remove academic units that have existing student records in the database. This will cause:
+  - Orphaned records (students with units not in dropdown)
+  - Filtering errors
+  - Inconsistent reporting
+  
+  Instead, consider:
+  - Keeping the unit in the list (even if inactive)
+  - Migrating existing student records first
+  - Adding a status flag (requires code modification)
+</Note>
+
+## Technical Implementation
+
+### Dropdown Rendering
+
+The academic unit dropdown is rendered using array mapping:
+
+```jsx
+<select value={unidad} onChange={e=>setUnidad(e.target.value)}>
+  <option value="">-- Selecciona --</option>
+  {UNIDADES_ACADEMICAS.map(u=>
+    <option key={u} value={u}>{u}</option>
+  )}
+</select>
+```
+
+**How it works:**
+1. Empty option as placeholder ("-- Selecciona --")
+2. Map over `UNIDADES_ACADEMICAS` array
+3. Create one `<option>` per unit
+4. Use unit name as both `key` and `value`
+5. Display unit name as option text
+
+### State Management
+
+```javascript
+// Initialize as empty
+const [unidad, setUnidad] = useState('');
+
+// Update on selection
+setUnidad(e.target.value);
+
+// Validate before submission
+if (!unidad) return alert("Revisa datos");
+
+// Store in database
+await addDoc(collection(db, "resultados"), { 
+  unidad: unidad,
+  // ... other fields
+});
+```
+
+### Query Filtering
+
+Instructors filter results by unit:
+
+```javascript
+const resultadosFiltrados = useMemo(() => {
+  return resultados.filter(r => {
+    // If filter is set and doesn't match, exclude
+    if (filtros.unidad && r.unidad !== filtros.unidad) 
+      return false;
+    
+    return true;
+  });
+}, [resultados, filtros]);
+```
+
+**Performance Optimization:**
+- Uses `useMemo` to cache filtered results
+- Only recalculates when `resultados` or `filtros` change
+- Exact string matching (`!==`)
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Double-Check Selection" icon="check-double">
+    Before starting an exam:
+    - Verify you selected the correct campus
+    - Cannot be changed after submission
+    - Appears on official PDF documents
+  </Card>
+
+  <Card title="Consistent Naming" icon="text">
+    For administrators:
+    - Use exact same spelling in all files
+    - Avoid accents or special characters
+    - Use title case consistently
+    - Test thoroughly after changes
+  </Card>
+
+  <Card title="Data Integrity" icon="database">
+    - Never edit academic units in database directly
+    - Use application interface only
+    - Dropdown prevents data entry errors
+    - Maintains referential integrity
+  </Card>
+
+  <Card title="Reporting" icon="chart-bar">
+    Instructors should:
+    - Filter by unit for campus-specific reports
+    - Compare performance across units
+    - Use for resource planning
+    - Export unit-specific data
+  </Card>
+</CardGroup>
+
+## Summary
+
+Academic units in the Examen App:
+
+✅ Seven official ITSZ campuses
+✅ Required field during exam registration
+✅ Dropdown selection prevents errors
+✅ Stored with exam results
+✅ Displayed on PDF certificates
+✅ Enable instructor filtering and reporting
+✅ Consistent across all application components
+✅ Hardcoded in source for data integrity
+
+Select your academic unit carefully during registration, as it becomes part of your permanent exam record.

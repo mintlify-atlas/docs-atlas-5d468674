@@ -1,0 +1,238 @@
+---
+title: 'Creating Exams'
+description: 'Step-by-step guide to creating and configuring exams'
+icon: 'file-plus'
+---
+
+## Creating a New Exam
+
+Exams are created in the **Exámenes** tab with comprehensive metadata that appears on printed materials.
+
+<Steps>
+  <Step title="Navigate to Exam Creation">
+    Click the **📝 Exámenes** tab in the main navigation. The creation form is in the left sidebar under "1. Crear Examen".
+  </Step>
+  
+  <Step title="Fill Required Fields">
+    ### Required Fields
+    
+    <ParamField path="nombreExamen" type="string" required>
+      The exam name (e.g., "Diagnóstico", "Parcial 1")
+    </ParamField>
+    
+    <ParamField path="asignatura" type="string" required>
+      Subject name (e.g., "Matemáticas", "Programación")
+    </ParamField>
+    
+    <CodeGroup>
+    ```javascript Validation
+    const crearExamen = async () => {
+      if (!nuevoNombreExamen || !nuevaAsignatura) {
+        return alert("Falta Nombre o Asignatura.");
+      }
+      // ... create exam
+    };
+    ```
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Configure Optional Metadata">
+    ### Optional Fields
+    
+    <ParamField path="unidad" type="string">
+      Academic unit number (e.g., "1", "2", "3")
+    </ParamField>
+    
+    <ParamField path="tema" type="string">
+      Topic or theme (e.g., "Álgebra Lineal", "Funciones")
+    </ParamField>
+    
+    <ParamField path="opcion" type="select" default="1ra">
+      Exam opportunity type:
+      - `diagnostico`: Diagnostic exam
+      - `1ra`: First opportunity
+      - `2da`: Second opportunity (retake)
+    </ParamField>
+    
+    <ParamField path="intentosMaximos" type="number" default="1">
+      Maximum attempts allowed per student (minimum: 1)
+    </ParamField>
+  </Step>
+  
+  <Step title="Submit">
+    Click **Crear Examen** to save. The exam is created in Firebase with this structure:
+    
+    ```javascript Exam Document Structure
+    await addDoc(collection(db, "examenes"), { 
+      nombreExamen: nuevoNombreExamen,
+      asignatura: nuevaAsignatura,
+      titulo: `${nuevoNombreExamen} - ${nuevaAsignatura}`, // Backup display name
+      unidad: nuevaUnidad, 
+      tema: nuevoTema, 
+      opcion: nuevaOpcion,
+      preguntas: [], // Empty array - add questions next
+      limite: 0, // 0 = all questions shown
+      intentosMaximos: parseInt(nuevoIntentos), 
+      permitirImpresion: false, // Disabled by default
+      docenteNombre: nombreProfe, // Auto-filled from your profile
+      docenteEmail: usuario.email // Your email
+    });
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  Your teacher name from the "Docentes" profile is automatically attached to the exam. If you see "⚠️ Configura tu perfil en 'Docentes' primero", ask an admin to add your profile.
+</Note>
+
+## Configuring Exam Settings
+
+After creating an exam, select it from the dropdown to configure advanced settings.
+
+### Random Question Selection
+
+<Accordion title="Configure Random Questions">
+  The `limite` field controls how many questions students see:
+  
+  ```javascript PanelProfesor.jsx:356-360
+  <label style={{display:'block', fontWeight:'bold', fontSize:'0.9em'}}>
+    Preguntas Aleatorias:
+  </label>
+  <input type="number" value={limiteConfig} onChange={e => setLimiteConfig(e.target.value)} />
+  <span style={{fontSize:'0.8em', opacity:0.8}}>(0 = Todas)</span>
+  ```
+  
+  **Examples:**
+  - Set to `0`: Shows all questions in random order
+  - Set to `10`: Shows 10 random questions from the question bank
+  - Set to `20`: Shows 20 random questions
+  
+  <Info>
+    Questions are shuffled using `sort(() => 0.5 - Math.random())` when the student starts the exam.
+  </Info>
+</Accordion>
+
+### Maximum Attempts
+
+<Accordion title="Configure Attempts">
+  Control how many times a student can take the exam:
+  
+  ```javascript Attempt Validation
+  const q = query(
+    collection(db, "resultados"), 
+    where("examenId", "==", id), 
+    where("numControl", "==", numControl.toUpperCase())
+  );
+  const snap = await getDocs(q);
+  const intentos = snap.size;
+  const maximos = examenInfo.intentosMaximos || 1;
+
+  if (intentos >= maximos) { 
+    setFase('bloqueado'); 
+    return; 
+  }
+  ```
+  
+  Students who exceed their attempts see: **"Acceso Denegado - Intentos agotados."**
+</Accordion>
+
+### Print Permissions
+
+<Accordion title="Enable PDF Export">
+  The `permitirImpresion` checkbox controls whether students can download their results as PDF:
+  
+  ```javascript PanelProfesor.jsx:364
+  <label style={{fontSize:'0.9em', cursor:'pointer'}}>
+    <input 
+      type="checkbox" 
+      checked={permitirPrint} 
+      onChange={e => setPermitirPrint(e.target.checked)} 
+    /> Permitir PDF
+  </label>
+  ```
+  
+  When enabled, students see a **"📄 Descargar/Imprimir PDF"** button after completing the exam.
+  
+  When disabled: *"La impresión de resultados está desactivada."*
+</Accordion>
+
+### Save Configuration
+
+After adjusting settings, click **💾 Guardar Config** to update:
+
+```javascript Save Configuration
+const actualizarConfiguracion = async () => {
+  if (!examenSeleccionado) return;
+  await updateDoc(doc(db, "examenes", examenSeleccionado), { 
+    limite: parseInt(limiteConfig), 
+    intentosMaximos: parseInt(intentosEdit), 
+    permitirImpresion: permitirPrint 
+  });
+  alert("Guardado");
+  cargarExamenes();
+};
+```
+
+## Exam Settings Summary
+
+<ResponseField name="exam" type="object">
+  <Expandable title="Complete Schema">
+    <ResponseField name="nombreExamen" type="string" required>
+      Display name of the exam
+    </ResponseField>
+    
+    <ResponseField name="asignatura" type="string" required>
+      Subject name
+    </ResponseField>
+    
+    <ResponseField name="titulo" type="string">
+      Backup display name (auto-generated)
+    </ResponseField>
+    
+    <ResponseField name="unidad" type="string">
+      Academic unit number
+    </ResponseField>
+    
+    <ResponseField name="tema" type="string">
+      Topic or theme
+    </ResponseField>
+    
+    <ResponseField name="opcion" type="string" default="1ra">
+      Exam type: `diagnostico` | `1ra` | `2da`
+    </ResponseField>
+    
+    <ResponseField name="preguntas" type="array" required>
+      Array of question objects
+    </ResponseField>
+    
+    <ResponseField name="limite" type="number" default="0">
+      Random question limit (0 = all)
+    </ResponseField>
+    
+    <ResponseField name="intentosMaximos" type="number" default="1">
+      Maximum attempts per student
+    </ResponseField>
+    
+    <ResponseField name="permitirImpresion" type="boolean" default="false">
+      Enable PDF export for students
+    </ResponseField>
+    
+    <ResponseField name="docenteNombre" type="string">
+      Teacher name (auto-filled)
+    </ResponseField>
+    
+    <ResponseField name="docenteEmail" type="string">
+      Teacher email (auto-filled)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Next Steps
+
+<Card title="Add Questions" icon="list" href="/teachers/managing-questions">
+  Now that your exam is created, add questions manually or import them from CSV
+</Card>
+
+<Warning>
+  Exams must have at least one question before students can take them. An empty exam will show students: "Sin preguntas."
+</Warning>

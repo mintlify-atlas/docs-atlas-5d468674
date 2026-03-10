@@ -1,0 +1,241 @@
+---
+title: 'Firebase Setup'
+description: 'Configure Firebase for authentication and Firestore database'
+icon: 'fire'
+---
+
+## Overview
+
+The Examen App uses Firebase for backend services, including authentication and Firestore database for storing exam data. This guide walks you through the Firebase configuration and integration.
+
+## Firebase Services Used
+
+The application integrates three core Firebase services:
+
+- **Firebase Authentication** - User authentication and authorization
+- **Cloud Firestore** - NoSQL database for storing exams and submissions
+- **Firebase Hosting** - Optional hosting solution (alternative to GitHub Pages)
+
+## Configuration Structure
+
+The Firebase configuration is located in `src/firebase.js` and follows this structure:
+
+```javascript src/firebase.js
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project.firebasestorage.app",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+// Export database
+export const db = getFirestore(app);
+
+// Export authentication
+export const auth = getAuth(app);
+```
+
+## Setup Instructions
+
+<Steps>
+  <Step title="Create a Firebase Project">
+    1. Go to the [Firebase Console](https://console.firebase.google.com/)
+    2. Click "Add project" or select an existing project
+    3. Follow the setup wizard to create your project
+    4. Enable Google Analytics if desired (optional)
+  </Step>
+
+  <Step title="Register Your Web App">
+    1. In the Firebase Console, click the web icon (`</>`) to add a web app
+    2. Register your app with a nickname (e.g., "Examen App")
+    3. Firebase will generate your configuration object
+    4. Copy the `firebaseConfig` object for the next step
+  </Step>
+
+  <Step title="Enable Authentication">
+    1. Navigate to **Authentication** in the Firebase Console
+    2. Click "Get Started" if this is your first time
+    3. Go to the **Sign-in method** tab
+    4. Enable your preferred authentication providers:
+       - Email/Password
+       - Google
+       - Other providers as needed
+  </Step>
+
+  <Step title="Set Up Firestore Database">
+    1. Navigate to **Firestore Database** in the console
+    2. Click "Create database"
+    3. Choose a starting mode:
+       - **Production mode** - Secure by default, requires rules
+       - **Test mode** - Open access for 30 days (good for development)
+    4. Select a Firestore location (choose closest to your users)
+    5. Click "Enable"
+  </Step>
+
+  <Step title="Configure Firebase in Your App">
+    Update the `src/firebase.js` file with your Firebase configuration:
+
+    ```javascript
+    const firebaseConfig = {
+      apiKey: "AIzaSyBDWQVihQ8IwPaUvSIFOK4xhpuD8N5xkGo",
+      authDomain: "examen-react-2026.firebaseapp.com",
+      projectId: "examen-react-2026",
+      storageBucket: "examen-react-2026.firebasestorage.app",
+      messagingSenderId: "1034837524422",
+      appId: "1:1034837524422:web:30cebed3f5e241fc77fcc7"
+    };
+    ```
+
+    <Warning>
+      While the API key is safe to expose in client-side code, ensure your Firestore security rules are properly configured to prevent unauthorized access.
+    </Warning>
+  </Step>
+</Steps>
+
+## Firestore Security Rules
+
+After setting up Firestore, configure security rules to protect your data:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Exams collection - read by all, write by authenticated users
+    match /examenes/{examenId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+      
+      // Submissions subcollection
+      match /entregas/{entregaId} {
+        allow read: if request.auth != null;
+        allow create: if true;
+        allow update, delete: if request.auth != null;
+      }
+    }
+  }
+}
+```
+
+## Using Firebase in Components
+
+Import the Firebase instances in your React components:
+
+```jsx
+import { db, auth } from './firebase';
+import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+
+// Example: Fetch exams from Firestore
+const fetchExams = async () => {
+  const querySnapshot = await getDocs(collection(db, 'examenes'));
+  const exams = querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+  return exams;
+};
+
+// Example: Authenticate user
+const login = async (email, password) => {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
+  } catch (error) {
+    console.error('Authentication error:', error);
+  }
+};
+```
+
+## Environment Variables (Optional)
+
+For better security practices, you can move Firebase configuration to environment variables:
+
+<Steps>
+  <Step title="Create .env file">
+    Create a `.env` file in your project root:
+
+    ```bash
+    VITE_FIREBASE_API_KEY=your_api_key
+    VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
+    VITE_FIREBASE_PROJECT_ID=your_project_id
+    VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+    VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+    VITE_FIREBASE_APP_ID=your_app_id
+    ```
+
+    <Warning>
+      Add `.env` to your `.gitignore` to prevent committing sensitive data.
+    </Warning>
+  </Step>
+
+  <Step title="Update firebase.js">
+    Reference environment variables in your configuration:
+
+    ```javascript
+    const firebaseConfig = {
+      apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+      authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+      storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+      appId: import.meta.env.VITE_FIREBASE_APP_ID
+    };
+    ```
+  </Step>
+</Steps>
+
+## Verification
+
+To verify your Firebase setup is working:
+
+<CodeGroup>
+```bash npm
+npm run dev
+```
+
+```bash yarn
+yarn dev
+```
+</CodeGroup>
+
+1. Open your browser's developer console
+2. Check for any Firebase initialization errors
+3. Try authenticating or fetching data to confirm connectivity
+
+## Troubleshooting
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="Firebase not initialized error">
+    Ensure all configuration values are correct and that you've called `initializeApp()` before using any Firebase services.
+  </Accordion>
+
+  <Accordion title="Permission denied errors">
+    Check your Firestore security rules. In development, you can temporarily use test mode, but always configure proper rules for production.
+  </Accordion>
+
+  <Accordion title="Authentication provider not enabled">
+    Go to Firebase Console > Authentication > Sign-in method and enable the authentication providers you're using in your code.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Variables" icon="code" href="./environment-variables">
+    Configure environment-specific settings
+  </Card>
+  <Card title="Deployment" icon="rocket" href="./deployment">
+    Deploy your app to GitHub Pages
+  </Card>
+</CardGroup>

@@ -1,0 +1,91 @@
+---
+title: Introduction
+description: A web-based diagnostic exam platform for students and teachers with Firebase integration
+---
+
+# Welcome to Examen App
+
+Examen App is a comprehensive web-based platform designed for educational institutions to create, manage, and administer diagnostic exams. Built with React and Firebase, it provides a complete solution for both students taking exams and teachers managing assessments.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Student Portal" icon="graduation-cap" href="/students/taking-exams">
+    Intuitive interface for students to register, take exams, and view results
+  </Card>
+  <Card title="Teacher Dashboard" icon="chalkboard-user" href="/teachers/getting-started">
+    Comprehensive admin panel for creating exams and managing questions
+  </Card>
+  <Card title="Question Bank" icon="database" href="/teachers/managing-questions">
+    Flexible question management with CSV import/export capabilities
+  </Card>
+  <Card title="PDF Export" icon="file-pdf" href="/features/pdf-export">
+    Generate printable exam results with detailed answer breakdowns
+  </Card>
+  <Card title="Multi-Theme" icon="palette" href="/features/themes">
+    Light, dark, and warm theme options for better accessibility
+  </Card>
+  <Card title="Attempt Control" icon="shield-check" href="/features/attempt-limits">
+    Configurable attempt limits to prevent exam retakes
+  </Card>
+</CardGroup>
+
+## Who Is This For?
+
+<AccordionGroup>
+  <Accordion title="Students">
+    Students use Examen App to take diagnostic exams assigned by their teachers. The platform validates student credentials, randomizes questions, and provides instant feedback with detailed results.
+  </Accordion>
+  
+  <Accordion title="Teachers">
+    Teachers create and manage exams, build question banks, configure attempt limits, and monitor student performance. The admin panel provides complete control over all aspects of exam administration.
+  </Accordion>
+  
+  <Accordion title="Educational Institutions">
+    Schools and universities can deploy Examen App to standardize diagnostic testing across multiple academic units with centralized result tracking and reporting.
+  </Accordion>
+</AccordionGroup>
+
+## Platform Highlights
+
+### For Students
+- **Simple Registration**: Enter your name, control number, and academic unit
+- **Randomized Questions**: Each attempt presents questions in random order
+- **Instant Results**: Get immediate feedback with detailed answer breakdown
+- **PDF Export**: Download and print your results (when enabled by teacher)
+
+### For Teachers
+- **Exam Creation**: Define exam parameters including title, subject, and attempt limits
+- **Question Management**: Add questions manually or import via CSV
+- **Result Tracking**: View and filter results by student, exam, or academic unit
+- **Bulk Operations**: Import/export questions and results in CSV format
+
+### Technical Features
+- **Firebase Authentication**: Secure teacher login with email/password
+- **Firestore Database**: Real-time data synchronization for exams and results
+- **React Router**: Smooth navigation between student and teacher interfaces
+- **Responsive Design**: Works seamlessly on desktop and mobile devices
+
+## Get Started
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get up and running in 5 minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Set up your development environment
+  </Card>
+  <Card title="Firebase Setup" icon="fire" href="/development/firebase-setup">
+    Configure Firebase for your deployment
+  </Card>
+  <Card title="Deployment" icon="cloud-arrow-up" href="/development/deployment">
+    Deploy to GitHub Pages
+  </Card>
+</CardGroup>
+
+## Need Help?
+
+Check out our comprehensive documentation:
+- [Student Guide](/students/taking-exams) - Learn how to take exams
+- [Teacher Guide](/teachers/getting-started) - Set up and manage exams
+- [Development Guide](/development/project-structure) - Understand the codebase

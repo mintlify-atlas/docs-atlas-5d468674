@@ -1,80 +1,136 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Get the Examen App running in minutes"
 ---
 
-## Get started in three steps
+## Get started in four steps
 
-Get your documentation site running locally and make your first customization.
+Get the Examen App running locally and start creating exams for your students.
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="Clone the repository">
+    Clone the Examen App repository to your local machine:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```bash
+    git clone https://github.com/eric-vc/examen-app.git
+    cd examen-app
+    ```
+  </Step>
 
-### Step 2: Deploy your changes
+  <Step title="Install dependencies">
+    Install all required npm packages:
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```bash
+    npm install
+    ```
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    The app uses the following key dependencies:
+    - **React 19.2.0** - UI framework
+    - **React Router DOM 7.13.0** - Client-side routing
+    - **Firebase 12.8.0** - Backend and authentication
+    - **Vite 7.2.4** - Build tool and dev server
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Configure Firebase">
+    Set up your Firebase configuration in `src/firebase.js`. Replace the configuration with your own Firebase project credentials:
 
-### Step 3: Go live
+    ```javascript src/firebase.js
+    import { initializeApp } from "firebase/app";
+    import { getFirestore } from "firebase/firestore";
+    import { getAuth } from "firebase/auth";
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "your-project.firebaseapp.com",
+      projectId: "your-project-id",
+      storageBucket: "your-project.firebasestorage.app",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    export const db = getFirestore(app);
+    export const auth = getAuth(app);
+    ```
+
+    <Note>
+      You'll need to create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com) and enable Firestore Database and Authentication.
+    </Note>
+  </Step>
+
+  <Step title="Start the development server">
+    Run the Vite development server:
+
+    ```bash
+    npm run dev
+    ```
+
+    Your app will be available at `http://localhost:5173`. The dev server includes hot module replacement (HMR) for instant updates as you code.
+  </Step>
+</Steps>
+
+## Verify your installation
+
+Once the development server is running, you should see:
+
+<CardGroup cols={2}>
+  <Card title="Home Page" icon="house">
+    The main page displays available exams loaded from Firebase. If no exams exist yet, you'll see "Cargando exámenes disponibles..."
+  </Card>
+
+  <Card title="Admin Panel" icon="user-gear">
+    Access the teacher panel at `/admin` to create and manage exams.
+  </Card>
+
+  <Card title="Theme Switcher" icon="palette">
+    Test the three built-in themes: Light (🌞), Dark (🌙), and Warm (☕).
+  </Card>
+
+  <Card title="Routing" icon="route">
+    Navigate between pages using React Router. The app uses the basename `/examen-app` for GitHub Pages deployment.
+  </Card>
+</CardGroup>
+
+## Available scripts
+
+<CodeGroup>
+```bash Development
+npm run dev
+```
+
+```bash Build
+npm run build
+```
+
+```bash Preview build
+npm run preview
+```
+
+```bash Lint
+npm run lint
+```
+
+```bash Deploy to GitHub Pages
+npm run deploy
+```
+</CodeGroup>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
+  <Card title="Complete installation" icon="circle-check" href="/installation">
+    Learn about detailed setup including Firebase configuration and environment setup.
+  </Card>
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+  <Card title="Create your first exam" icon="file-plus" href="/teachers/creating-exams">
+    Start building exams in the teacher panel.
+  </Card>
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+  <Card title="Firebase setup" icon="database" href="/development/firebase-setup">
+    Configure Firebase collections and security rules.
+  </Card>
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Deploy your app" icon="rocket" href="/development/deployment">
+    Deploy to GitHub Pages or other hosting platforms.
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

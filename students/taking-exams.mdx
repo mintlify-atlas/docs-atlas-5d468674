@@ -1,0 +1,342 @@
+---
+title: Taking Exams
+description: Complete guide for students to register, take exams, and submit their answers
+icon: pencil
+---
+
+## Overview
+
+The Examen App provides a streamlined process for students to take exams online. The system handles registration, exam delivery with randomized questions, and automatic grading.
+
+## Exam Workflow
+
+<Steps>
+  <Step title="Access the Exam">
+    Navigate to the home page and select an available exam from the grid. Each exam card displays:
+    - Exam title (e.g., "Diagnóstico - Matemáticas")
+    - Subject information
+    - "Click para comenzar" prompt
+  </Step>
+
+  <Step title="Complete Registration">
+    Fill out the required student information before starting the exam.
+  </Step>
+
+  <Step title="Answer Questions">
+    Complete all questions in the exam interface with the randomized question set.
+  </Step>
+
+  <Step title="Submit & View Results">
+    Submit your exam and view your final grade immediately.
+  </Step>
+</Steps>
+
+## Registration Form
+
+### Required Fields
+
+Before starting an exam, you must provide the following information:
+
+#### 1. Full Name (Nombre)
+- Enter your complete name as it appears in official records
+- This field is required and cannot be empty
+
+#### 2. Control Number (No. Control)
+
+Your control number must follow a specific format:
+
+<Warning>
+  **Format Required:** 3 digits + "W" + 4 digits
+  
+  **Example:** 123W1041
+</Warning>
+
+**Validation Rules:**
+- Exactly 8 characters total
+- First 3 characters must be numbers (0-9)
+- 4th character must be "W" (uppercase or lowercase)
+- Last 4 characters must be numbers (0-9)
+- The system will automatically convert "w" to "W" (uppercase)
+
+**Validation Pattern:**
+```regex
+/^\d{3}[Ww]\d{4}$/
+```
+
+**Common Errors:**
+- ❌ `12W1041` - Only 2 digits before W
+- ❌ `123W104` - Only 3 digits after W
+- ❌ `1234W1041` - 4 digits before W
+- ✅ `123W1041` - Correct format
+- ✅ `999w0000` - Correct (lowercase w is accepted)
+
+<Note>
+  If you enter an invalid control number, you'll see an error message: "Formato inválido (Ej: 123W1041)"
+</Note>
+
+#### 3. Academic Unit (Unidad Académica)
+
+Select your campus from the dropdown menu. Available options:
+
+- Zongolica
+- Tequila
+- Nogales
+- Acultzinapa
+- Cuichapa
+- Tezonapa
+- Tehuipango
+
+<Note>
+  All three fields must be completed with valid data before the "Comenzar" (Start) button becomes active.
+</Note>
+
+### Starting the Exam
+
+Once you click "Comenzar" (Start):
+
+1. **Attempt Verification**: The system checks how many times you've taken this exam using your control number
+2. **Maximum Attempts**: If you've reached the maximum allowed attempts, you'll see:
+   - Phase changes to "bloqueado" (blocked)
+   - Message: "Acceso Denegado" (Access Denied)
+   - Reason: "Intentos agotados" (Attempts exhausted)
+3. **Question Randomization**: Questions are randomly shuffled from the question bank
+4. **Question Limit**: If the exam has a question limit configured, only that number of questions will be shown
+
+## Taking the Exam
+
+### Exam Interface
+
+**Header Information:**
+- Exam title (left side)
+- Your control number (right side)
+
+**Question Display:**
+
+Each question appears in a card format with:
+- Question number and text
+- 4 multiple choice options
+- Radio button selection
+
+**Answer Selection:**
+- Click on any option to select it
+- Selected options are highlighted with a blue background (light theme) or darker background (dark theme)
+- You can change your answer by clicking a different option
+- Unanswered questions remain without selection
+
+<Note>
+  You can answer questions in any order. The system does not require you to answer all questions before submitting.
+</Note>
+
+### Submitting Your Exam
+
+1. Click the green **"Finalizar y Enviar"** (Finish and Submit) button at the bottom
+2. The system will:
+   - Calculate your score automatically
+   - Compare your answers to correct answers
+   - Store your results in the database
+   - Display your final grade
+
+**Grading System:**
+```javascript
+// Score calculation
+aciertos = number of correct answers
+total_questions = number of questions in exam
+calificacion = (aciertos / total_questions) * 10
+```
+
+Your grade is calculated on a scale of 0-10 based on the percentage of correct answers.
+
+## After Submission
+
+### Results Screen
+
+After submitting, you'll see:
+
+**On Screen Display:**
+- "¡Examen Enviado!" (Exam Submitted!) message
+- Your final grade (large display, 1 decimal place)
+- PDF download/print option (if enabled by instructor)
+- "Volver al Inicio" (Return to Home) link
+
+<Note>
+  The PDF download button only appears if the instructor has enabled the "permitirImpresion" (allow printing) option for this exam.
+</Note>
+
+### Disabled Printing
+
+If printing is disabled, you'll see:
+```
+"La impresión de resultados está desactivada."
+(Printing of results is disabled.)
+```
+
+## Exam Attempts
+
+### Attempt Tracking
+
+The system tracks attempts by:
+- **Exam ID**: Each exam has a unique identifier
+- **Control Number**: Your control number is used to count attempts
+- **Database Query**: Results are checked against Firestore `resultados` collection
+
+### Maximum Attempts
+
+Each exam has a configured maximum number of attempts (default: 1)
+
+**When Maximum Attempts Reached:**
+```javascript
+if (intentos >= maximos) { 
+  setFase('bloqueado'); 
+  setIntentosRealizados(intentos); 
+  return; 
+}
+```
+
+<Warning>
+  Once you reach the maximum number of attempts, you cannot retake the exam. The system will show "Acceso Denegado" (Access Denied) when you try to start.
+</Warning>
+
+## Exam Features
+
+### Question Randomization
+
+**Shuffle Algorithm:**
+```javascript
+const barajadas = [...banco].sort(() => 0.5 - Math.random());
+```
+
+Questions are randomly shuffled each time you start an exam, ensuring different question orders for different attempts or students.
+
+### Question Limits
+
+Instructors can configure a question limit:
+- **Limit = 0 or empty**: All questions from the bank are shown
+- **Limit > 0**: Only the specified number of questions are shown (randomly selected)
+
+**Example:**
+- Question bank has 50 questions
+- Limit is set to 20
+- You will receive 20 random questions from the bank
+
+## Theme Support
+
+The exam interface supports three themes that persist across your session:
+
+**Available Themes:**
+- 🌞 **Claro** (Light): White background, dark text
+- 🌙 **Oscuro** (Dark): Dark background, light text
+- ☕ **Cálido** (Warm): Beige/warm background, brown text
+
+<Note>
+  Your theme preference is saved to localStorage and persists across exam sessions.
+</Note>
+
+## Troubleshooting
+
+### Common Issues
+
+<AccordionGroup>
+  <Accordion title="Cannot start exam - button is disabled">
+    **Check that:**
+    - Your name is filled in
+    - Control number is in correct format (###W####)
+    - Academic unit is selected from dropdown
+    - No validation errors are shown
+  </Accordion>
+
+  <Accordion title="Getting 'Acceso Denegado' error">
+    You have reached the maximum number of attempts for this exam. Contact your instructor if you need additional attempts.
+  </Accordion>
+
+  <Accordion title="Control number shows error">
+    Verify your control number follows the exact format:
+    - 3 digits
+    - Letter W (uppercase or lowercase)
+    - 4 digits
+    
+    Example: 123W1041
+  </Accordion>
+
+  <Accordion title="Cannot see PDF download button">
+    The instructor has disabled PDF downloads for this exam. You can still see your results on screen.
+  </Accordion>
+
+  <Accordion title="Exam is loading but no questions appear">
+    This may indicate:
+    - The exam has no questions configured
+    - Network connection issue
+    - Try refreshing the page or contact your instructor
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Before Starting" icon="clipboard-check">
+    - Verify your control number is correct
+    - Check your internet connection
+    - Review allowed attempts remaining
+    - Choose a quiet environment
+  </Card>
+
+  <Card title="During Exam" icon="clock">
+    - Read each question carefully
+    - You can change answers before submitting
+    - Selected answers are highlighted
+    - No time limit (unless specified)
+  </Card>
+
+  <Card title="After Submission" icon="check-circle">
+    - Review your grade immediately
+    - Download PDF if available
+    - Note that grades are final once submitted
+    - No editing after submission
+  </Card>
+
+  <Card title="Technical Tips" icon="lightbulb">
+    - Use a stable internet connection
+    - Don't refresh during exam
+    - Choose comfortable theme
+    - Complete in one session
+  </Card>
+</CardGroup>
+
+## Technical Details
+
+### Data Storage
+
+When you submit an exam, the following information is stored:
+
+```javascript
+await addDoc(collection(db, "resultados"), { 
+  examenId: id,
+  examenTitulo: examenInfo.titulo,
+  nombre: nombre,
+  numControl: numControl,
+  unidad: unidad,
+  calificacion: nota,
+  fecha: new Date().toISOString()
+});
+```
+
+**Stored Fields:**
+- `examenId`: Unique exam identifier
+- `examenTitulo`: Exam title/name
+- `nombre`: Your full name
+- `numControl`: Your control number (uppercase)
+- `unidad`: Your academic unit
+- `calificacion`: Final grade (0-10 scale)
+- `fecha`: Timestamp of submission (ISO format)
+
+### State Management
+
+The exam component manages several phases:
+
+**Phases:**
+1. `registro` - Registration form
+2. `cargando` - Verifying attempts and loading
+3. `examen` - Active exam taking
+4. `finalizado` - Results display
+5. `bloqueado` - Access denied (max attempts reached)
+
+Your current phase determines what you see on screen.

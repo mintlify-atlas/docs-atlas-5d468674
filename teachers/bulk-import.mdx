@@ -1,0 +1,351 @@
+---
+title: 'Bulk Import from CSV'
+description: 'Import multiple questions at once using CSV files'
+icon: 'file-csv'
+---
+
+## CSV Format Specification
+
+The bulk import feature allows you to add multiple questions to an exam using a CSV (Comma-Separated Values) file.
+
+### Required Format
+
+<CodeGroup>
+```csv Example File
+Pregunta,Op1,Op2,Op3,Op4,IndexCorrecta
+"What is 2 + 2?","3","4","5","6",2
+"Capital of France?","London","Paris","Berlin","Madrid",2
+"Largest planet?","Earth","Mars","Jupiter","Saturn",3
+```
+
+```csv With Special Characters
+Pregunta,Op1,Op2,Op3,Op4,IndexCorrecta
+"What does ""AI"" stand for?","Artificial Intelligence","Automated Interface","Advanced Input","None",1
+"Calculate: 5 * 3?","8","15","20","25",2
+```
+</CodeGroup>
+
+### Column Specification
+
+<ResponseField name="Pregunta" type="string" required>
+  The question text. Wrap in quotes if it contains commas or special characters.
+</ResponseField>
+
+<ResponseField name="Op1" type="string" required>
+  First answer option
+</ResponseField>
+
+<ResponseField name="Op2" type="string" required>
+  Second answer option
+</ResponseField>
+
+<ResponseField name="Op3" type="string" required>
+  Third answer option
+</ResponseField>
+
+<ResponseField name="Op4" type="string" required>
+  Fourth answer option
+</ResponseField>
+
+<ResponseField name="IndexCorrecta" type="number" required>
+  The index of the correct answer (1-4):
+  - `1` = Op1 is correct
+  - `2` = Op2 is correct
+  - `3` = Op3 is correct
+  - `4` = Op4 is correct
+</ResponseField>
+
+<Warning>
+  The header row ("Pregunta,Op1,Op2,Op3,Op4,IndexCorrecta") is **required** and will be automatically skipped during import.
+</Warning>
+
+## Import Process
+
+<Steps>
+  <Step title="Select Exam">
+    First, select an exam from the dropdown in the **2. Gestionar** section. The import button is only active when an exam is selected.
+  </Step>
+  
+  <Step title="Prepare CSV File">
+    Create your CSV file following the format above. You can use:
+    - Excel or Google Sheets (export as CSV)
+    - Text editor (save with `.csv` extension)
+    - Export from existing question bank
+    
+    <Tip>
+      Use double quotes (`""`) to escape quotes within text fields.
+    </Tip>
+  </Step>
+  
+  <Step title="Import File">
+    Click **📥 Importar CSV** and select your file:
+    
+    ```javascript PanelProfesor.jsx:375-377
+    <label style={{display:'block', cursor:'pointer', background:'#6c757d'}}>
+      📥 Importar CSV 
+      <input type="file" accept=".csv" onChange={handleImportarCSV} style={{display:'none'}} />
+    </label>
+    ```
+  </Step>
+  
+  <Step title="Processing">
+    The system processes your file:
+    
+    ```javascript Import Handler
+    const handleImportarCSV = (e) => {
+      const file = e.target.files[0];
+      if (!file || !examenSeleccionado) return;
+      
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        const text = evt.target.result;
+        const lines = text.split('\n');
+        const nuevasPreguntas = [];
+        
+        lines.forEach((line) => {
+          if (!line.trim()) return; // Skip empty lines
+          
+          const cols = line.split(',');
+          if (cols.length >= 6) {
+            const texto = cols[0].trim();
+            
+            // Skip header row
+            if (texto.toLowerCase() === 'pregunta') return;
+            
+            const op1 = cols[1].trim();
+            const op2 = cols[2].trim();
+            const op3 = cols[3].trim();
+            const op4 = cols[4].trim();
+            const correctaIdx = parseInt(cols[5].trim());
+            
+            // Validate data
+            if (texto && op1 && op2 && op3 && op4 && 
+                correctaIdx >= 1 && correctaIdx <= 4) {
+              const opciones = [op1, op2, op3, op4];
+              nuevasPreguntas.push({ 
+                texto: texto, 
+                opciones: opciones, 
+                correcta: opciones[correctaIdx - 1] // Convert to 0-based index
+              });
+            }
+          }
+        });
+        
+        if (nuevasPreguntas.length > 0) {
+          const ref = doc(db, "examenes", examenSeleccionado);
+          await updateDoc(ref, { 
+            preguntas: arrayUnion(...nuevasPreguntas) 
+          });
+          alert(`Se importaron ${nuevasPreguntas.length} preguntas.`);
+          cargarExamenes();
+        } else {
+          alert("Error en CSV. Revisa el formato.");
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = ''; // Reset input
+    };
+    ```
+  </Step>
+  
+  <Step title="Confirmation">
+    You'll see a success message:
+    
+    <Info>
+      "Se importaron X preguntas."
+    </Info>
+    
+    Or an error if the format is invalid:
+    
+    <Warning>
+      "Error en CSV. Revisa el formato."
+    </Warning>
+  </Step>
+</Steps>
+
+## Export Existing Questions
+
+You can export questions from any exam to use as a template or backup.
+
+<Steps>
+  <Step title="Select Exam">
+    Choose the exam containing questions you want to export.
+  </Step>
+  
+  <Step title="Click Export Button">
+    Click **📤 Descargar Preguntas** in the CSV section:
+    
+    ```javascript Export Handler
+    const handleExportarCSV = () => {
+      if (!examenSeleccionado) return;
+      const ex = examenes.find(e => e.id === examenSeleccionado);
+      if (!ex || !ex.preguntas || ex.preguntas.length === 0) {
+        return alert("Sin preguntas.");
+      }
+      
+      let csvContent = "data:text/csv;charset=utf-8,Pregunta,Op1,Op2,Op3,Op4,IndexCorrecta\n";
+      
+      ex.preguntas.forEach(p => {
+        // Escape quotes by doubling them
+        const clean = (txt) => `"${txt.replace(/"/g, '""')}"`;
+        
+        // Find index of correct answer (1-based)
+        const idxCorrecta = p.opciones.indexOf(p.correcta) + 1;
+        
+        csvContent += [
+          clean(p.texto), 
+          clean(p.opciones[0]), 
+          clean(p.opciones[1]), 
+          clean(p.opciones[2]), 
+          clean(p.opciones[3]), 
+          idxCorrecta
+        ].join(",") + "\n";
+      });
+      
+      const link = document.createElement("a");
+      link.setAttribute("href", encodeURI(csvContent));
+      link.setAttribute("download", `${ex.nombreExamen || ex.titulo}_preguntas.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+    ```
+  </Step>
+  
+  <Step title="File Downloaded">
+    A CSV file is downloaded with the name: `{ExamName}_preguntas.csv`
+  </Step>
+</Steps>
+
+## Common Import Issues
+
+<AccordionGroup>
+  <Accordion title="Empty Lines Skipped">
+    Empty lines in your CSV are automatically ignored:
+    
+    ```javascript
+    if (!line.trim()) return; // Skip empty lines
+    ```
+    
+    This prevents errors from trailing newlines or formatting issues.
+  </Accordion>
+  
+  <Accordion title="Invalid Index Values">
+    If `IndexCorrecta` is not between 1-4, the question is skipped:
+    
+    ```javascript
+    if (correctaIdx >= 1 && correctaIdx <= 4) {
+      // Valid - process question
+    }
+    ```
+    
+    **Example Errors:**
+    - `0` - Invalid (must be 1-4)
+    - `5` - Invalid (only 4 options)
+    - `A` - Invalid (must be numeric)
+  </Accordion>
+  
+  <Accordion title="Missing Columns">
+    Rows with fewer than 6 columns are skipped:
+    
+    ```javascript
+    if (cols.length >= 6) {
+      // Has all required columns
+    }
+    ```
+    
+    Make sure every row has all columns, even if some are empty.
+  </Accordion>
+  
+  <Accordion title="Special Characters">
+    Quotes and commas in text must be handled:
+    
+    ```csv
+    "What is ""AI""?","Artificial Intelligence","Auto Input","None","Both",1
+    ```
+    
+    - Commas: Wrap entire field in quotes
+    - Quotes: Double them (`""`) inside quoted fields
+  </Accordion>
+  
+  <Accordion title="File Encoding">
+    The import uses UTF-8 encoding:
+    
+    ```javascript
+    reader.readAsText(file); // Defaults to UTF-8
+    ```
+    
+    If you have special characters (á, é, ñ, etc.), save your CSV as UTF-8.
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Test Small Batches" icon="vial">
+    Import 5-10 questions first to verify format before uploading hundreds
+  </Card>
+  
+  <Card title="Use Templates" icon="file-lines">
+    Export existing questions as a template for new question sets
+  </Card>
+  
+  <Card title="Backup Before Import" icon="floppy-disk">
+    Export current questions before importing to prevent accidental data loss
+  </Card>
+  
+  <Card title="Validate Data" icon="check">
+    Check that all IndexCorrecta values are correct before importing
+  </Card>
+</CardGroup>
+
+## CSV Template
+
+Download this template to get started:
+
+<CodeGroup>
+```csv Mathematics Template
+Pregunta,Op1,Op2,Op3,Op4,IndexCorrecta
+"What is 5 + 7?","10","11","12","13",3
+"Square root of 64?","6","7","8","9",3
+"Value of π (approx)?","2.14","3.14","4.14","5.14",2
+```
+
+```csv Programming Template
+Pregunta,Op1,Op2,Op3,Op4,IndexCorrecta
+"What language is React written in?","Python","JavaScript","Java","C++",2
+"What does HTML stand for?","Hyper Text Markup Language","High Tech Modern Language","Home Tool Markup Language","None",1
+"Default port for HTTP?","21","22","80","443",3
+```
+</CodeGroup>
+
+## Troubleshooting
+
+<Steps>
+  <Step title="No Questions Imported">
+    Check that:
+    - File has the correct header row
+    - At least one row has valid data
+    - IndexCorrecta values are 1-4
+    - All required columns are present
+  </Step>
+  
+  <Step title="Some Questions Skipped">
+    Look for rows with:
+    - Empty required fields (texto, op1, op2, op3, op4)
+    - Invalid IndexCorrecta values
+    - Incorrect number of columns
+  </Step>
+  
+  <Step title="Special Characters Broken">
+    - Save file as UTF-8 encoding
+    - Wrap fields with special characters in quotes
+    - Test with a single question first
+  </Step>
+</Steps>
+
+## Next Steps
+
+<Card title="Print Exams" icon="print" href="/teachers/printing-exams">
+  Learn how to print exam materials for paper-based testing
+</Card>

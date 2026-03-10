@@ -1,0 +1,300 @@
+---
+title: 'Managing Questions'
+description: 'Add, edit, and delete exam questions'
+icon: 'list-check'
+---
+
+## Question Structure
+
+Each question has the following format:
+
+```javascript Question Object
+{
+  texto: "What is 2 + 2?",
+  opciones: ["3", "4", "5", "6"],
+  correcta: "4" // Must match one of the opciones values
+}
+```
+
+<Warning>
+  The `correcta` field must exactly match one of the values in the `opciones` array, not an index.
+</Warning>
+
+## Adding Questions Manually
+
+<Steps>
+  <Step title="Select an Exam">
+    In the **2. Gestionar** section, select an exam from the dropdown:
+    
+    ```javascript PanelProfesor.jsx:345-352
+    <select 
+      value={examenSeleccionado} 
+      onChange={e => setExamenSeleccionado(e.target.value)} 
+      style={{...inputStyle, width:'100%', marginBottom:'15px'}}
+    >
+      <option value="">-- Selecciona Examen --</option>
+      {examenes.map(ex => (
+        <option key={ex.id} value={ex.id}>
+          {ex.nombreExamen ? `${ex.nombreExamen} - ${ex.asignatura}` : ex.titulo}
+        </option>
+      ))}
+    </select>
+    ```
+  </Step>
+  
+  <Step title="Fill Question Form">
+    The question form appears in the right panel:
+    
+    <ParamField path="texto" type="textarea" required>
+      Question text/prompt
+    </ParamField>
+    
+    <ParamField path="op1" type="string" required>
+      First answer option
+    </ParamField>
+    
+    <ParamField path="op2" type="string" required>
+      Second answer option
+    </ParamField>
+    
+    <ParamField path="op3" type="string" required>
+      Third answer option
+    </ParamField>
+    
+    <ParamField path="op4" type="string" required>
+      Fourth answer option
+    </ParamField>
+    
+    <ParamField path="correcta" type="select" required>
+      Select which option is correct:
+      - Opción 1
+      - Opción 2
+      - Opción 3
+      - Opción 4
+    </ParamField>
+  </Step>
+  
+  <Step title="Submit Question">
+    Click **Agregar** to save. The question is added to Firebase:
+    
+    ```javascript Add Question
+    const pObj = { 
+      texto: pregunta.texto, 
+      opciones: [
+        pregunta.op1, 
+        pregunta.op2, 
+        pregunta.op3, 
+        pregunta.op4
+      ], 
+      correcta: pregunta[pregunta.correcta] // Converts "op1" to actual value
+    };
+    
+    const ref = doc(db, "examenes", examenSeleccionado);
+    await updateDoc(ref, { 
+      preguntas: arrayUnion(pObj) 
+    });
+    ```
+    
+    <Info>
+      Questions are appended to the `preguntas` array using Firebase's `arrayUnion` to prevent race conditions.
+    </Info>
+  </Step>
+</Steps>
+
+## Viewing Question Bank
+
+All questions for the selected exam appear in a paginated list below the form.
+
+### Pagination Controls
+
+```javascript Pagination Logic
+const obtenerPreguntasPaginadas = () => {
+  const ex = examenes.find(e => e.id === examenSeleccionado);
+  if (!ex || !ex.preguntas) return [];
+  const indiceUltimo = paginaActual * preguntasPorPagina;
+  return ex.preguntas.slice(
+    indiceUltimo - preguntasPorPagina, 
+    indiceUltimo
+  );
+};
+```
+
+<Accordion title="Pagination Options">
+  Choose how many questions to display per page:
+  
+  ```javascript PanelProfesor.jsx:413-415
+  <select value={preguntasPorPagina} onChange={e => {
+    setPreguntasPorPagina(parseInt(e.target.value)); 
+    setPaginaActual(1);
+  }}>
+    <option value="5">Ver 5</option>
+    <option value="10">Ver 10</option>
+    <option value="20">Ver 20</option>
+  </select>
+  ```
+</Accordion>
+
+### Question Display
+
+Each question shows:
+- Question number and text
+- All four options with visual indicators:
+  - ✅ Green background for correct answer
+  - ⚪ White background for incorrect options
+- Action buttons:
+  - ✏️ Edit button
+  - 🗑️ Delete button
+
+## Editing Questions
+
+<Steps>
+  <Step title="Click Edit Icon">
+    Click the ✏️ icon on any question. The form populates with existing values:
+    
+    ```javascript Load Question for Editing
+    const seleccionarParaEditar = (p, idx) => {
+      // Convert correcta value back to option key
+      let k = 'op1';
+      if (p.correcta === p.opciones[1]) k='op2';
+      if (p.correcta === p.opciones[2]) k='op3';
+      if (p.correcta === p.opciones[3]) k='op4';
+      
+      setPregunta({ 
+        texto: p.texto, 
+        op1: p.opciones[0], 
+        op2: p.opciones[1], 
+        op3: p.opciones[2], 
+        op4: p.opciones[3], 
+        correcta: k 
+      });
+      setModoEdicion(true);
+      setIndiceEdicion(idx);
+      window.scrollTo(0,0);
+    };
+    ```
+  </Step>
+  
+  <Step title="Modify Fields">
+    Update any fields in the form. The button changes to yellow **Actualizar**.
+  </Step>
+  
+  <Step title="Save or Cancel">
+    - Click **Actualizar** to save changes
+    - Click **Cancelar** to discard changes
+    
+    ```javascript Update Question
+    const ref = doc(db, "examenes", examenSeleccionado);
+    const s = await getDoc(ref);
+    const d = s.data();
+    const nuevasPreguntas = [...d.preguntas];
+    nuevasPreguntas[indiceEdicion] = pObj; // Replace at index
+    await updateDoc(ref, { preguntas: nuevasPreguntas });
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  Editing a question requires fetching the entire array, modifying the specific index, and updating the document. This is necessary because Firestore doesn't support updating array elements by index directly.
+</Note>
+
+## Deleting Questions
+
+<Steps>
+  <Step title="Click Delete Icon">
+    Click the 🗑️ icon on any question.
+  </Step>
+  
+  <Step title="Confirm Deletion">
+    A browser confirmation dialog appears: "¿Eliminar?"
+  </Step>
+  
+  <Step title="Question Removed">
+    The question is removed from the array:
+    
+    ```javascript Delete Question
+    const eliminarPregunta = async (idx) => {
+      if(!confirm("¿Eliminar?")) return;
+      const ref = doc(db, "examenes", examenSeleccionado);
+      const s = await getDoc(ref);
+      const nuevasPreguntas = s.data().preguntas.filter((_, i) => i !== idx);
+      await updateDoc(ref, { preguntas: nuevasPreguntas });
+      cargarExamenes();
+    };
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  Deleting questions is permanent. There is no undo functionality. Consider exporting questions to CSV before making bulk deletions.
+</Warning>
+
+## Question Validation
+
+The form enforces these validations:
+
+<Tabs>
+  <Tab title="Client-Side">
+    All fields are marked `required` in the HTML form:
+    
+    ```javascript PanelProfesor.jsx:391-396
+    <textarea 
+      placeholder="Enunciado de la pregunta..." 
+      value={pregunta.texto} 
+      onChange={e => setPregunta({...pregunta, texto: e.target.value})} 
+      required 
+    />
+    <input placeholder="Opción 1" value={pregunta.op1} required />
+    <input placeholder="Opción 2" value={pregunta.op2} required />
+    <input placeholder="Opción 3" value={pregunta.op3} required />
+    <input placeholder="Opción 4" value={pregunta.op4} required />
+    ```
+  </Tab>
+  
+  <Tab title="Data Integrity">
+    The correct answer is stored as the actual option text, not an index:
+    
+    ```javascript
+    // ❌ Wrong
+    { correcta: 0 }
+    
+    // ✅ Correct
+    { correcta: "The actual answer text" }
+    ```
+    
+    This ensures students see the correct answer even if options are shuffled.
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Question Writing Tips">
+    - Keep question text concise and clear
+    - Avoid "all of the above" or "none of the above" options
+    - Make all options plausible to avoid obvious answers
+    - Test questions have exactly 4 options (no more, no fewer)
+  </Accordion>
+  
+  <Accordion title="Organization">
+    - Use consistent formatting for similar question types
+    - Group related questions by topic using the pagination
+    - Review questions before publishing exams to students
+  </Accordion>
+  
+  <Accordion title="Editing Strategy">
+    - Edit questions immediately after creation to catch typos
+    - Avoid editing questions after students have taken the exam
+    - Consider creating new exam versions instead of modifying active exams
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Bulk Import" icon="file-csv" href="/teachers/bulk-import">
+    Learn how to import multiple questions from CSV files
+  </Card>
+  <Card title="View Results" icon="chart-bar" href="/teachers/viewing-results">
+    Check student performance and export reports
+  </Card>
+</CardGroup>

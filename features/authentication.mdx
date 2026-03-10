@@ -1,0 +1,207 @@
+---
+title: 'Authentication'
+description: 'Firebase-based authentication system for teacher access control'
+icon: 'key'
+---
+
+## Overview
+
+The Examen App implements a secure authentication system using Firebase Authentication, restricting access to the teacher admin panel through email/password authentication with a whitelist-based registration system.
+
+## Firebase Configuration
+
+The application initializes Firebase with the following setup:
+
+```javascript src/firebase.js
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBDWQVihQ8IwPaUvSIFOK4xhpuD8N5xkGo",
+  authDomain: "examen-react-2026.firebaseapp.com",
+  projectId: "examen-react-2026",
+  storageBucket: "examen-react-2026.firebasestorage.app",
+  messagingSenderId: "1034837524422",
+  appId: "1:1034837524422:web:30cebed3f5e241fc77fcc7"
+};
+
+const app = initializeApp(firebaseConfig);
+
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+```
+
+## Authentication Flow
+
+The authentication system is implemented in `PanelProfesor.jsx` with the following key features:
+
+### Login and Registration
+
+<Tabs>
+  <Tab title="Login">
+    Teachers can log in with their institutional email and password:
+    
+    ```javascript
+    const handleAuth = async (e) => {
+      e.preventDefault();
+      setErrorLogin('');
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (error) {
+        if (error.code === 'auth/invalid-credential') 
+          setErrorLogin("Credenciales incorrectas.");
+        else 
+          setErrorLogin(error.message);
+      }
+    };
+    ```
+  </Tab>
+  
+  <Tab title="Registration">
+    New teachers can register, but only if their email is in the whitelist:
+    
+    ```javascript
+    if (esRegistro) {
+      // Check whitelist in Firestore
+      const q = query(
+        collection(db, "docentes"), 
+        where("email", "==", email)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        setErrorLogin(
+          "❌ Correo no autorizado. Pide al admin que te agregue."
+        );
+        return;
+      }
+      
+      await createUserWithEmailAndPassword(auth, email, password);
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Authentication State Management
+
+The app uses Firebase's `onAuthStateChanged` to persist authentication state:
+
+```javascript src/PanelProfesor.jsx
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, (user) => {
+    if (user) {
+      setUsuario(user);
+      cargarExamenes();
+      cargarDocentes(user.email);
+    } else {
+      setUsuario(null);
+      setExamenes([]);
+      setDocenteActual(null);
+    }
+  });
+  return () => unsubscribe();
+}, []);
+```
+
+## Access Control
+
+<Steps>
+  <Step title="Whitelist Check">
+    Only emails registered in the `docentes` collection can create accounts
+  </Step>
+  
+  <Step title="Authentication Required">
+    The admin panel is completely blocked for unauthenticated users:
+    
+    ```javascript
+    if (!usuario) return (
+      <div style={{ /* login form styles */ }}>
+        {/* Login/Registration Form */}
+      </div>
+    );
+    ```
+  </Step>
+  
+  <Step title="Session Persistence">
+    Firebase automatically persists authentication state across browser sessions
+  </Step>
+</Steps>
+
+## Teacher Management
+
+Administrators can manage the whitelist through the "Docentes" section:
+
+```javascript src/PanelProfesor.jsx
+const guardarDocente = async () => {
+  if (!nuevoDocenteNombre || !nuevoDocenteEmail) 
+    return alert("Faltan datos");
+  
+  try {
+    await addDoc(collection(db, "docentes"), { 
+      nombre: nuevoDocenteNombre, 
+      email: nuevoDocenteEmail, 
+      fechaRegistro: new Date().toISOString() 
+    });
+    alert("Docente agregado");
+    cargarDocentes(usuario.email);
+  } catch (e) { 
+    alert("Error"); 
+  }
+};
+```
+
+<Info>
+The `docentes` collection serves as the whitelist - only emails in this collection can register new accounts.
+</Info>
+
+## Logout Functionality
+
+Teachers can log out at any time:
+
+```javascript
+const handleLogout = () => { 
+  signOut(auth); 
+  setVistaActual('examenes'); 
+};
+```
+
+## Security Considerations
+
+<Warning>
+The Firebase configuration contains public API keys. While this is normal for Firebase client-side apps, ensure proper Firebase Security Rules are configured to protect sensitive data.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="Whitelist-Based" icon="list-check">
+    Only pre-approved emails can register
+  </Card>
+  
+  <Card title="Password Protected" icon="lock">
+    All accounts require strong passwords
+  </Card>
+  
+  <Card title="Session Management" icon="clock">
+    Automatic session persistence
+  </Card>
+  
+  <Card title="Role Tracking" icon="user-tag">
+    Teacher names and emails stored with exams
+  </Card>
+</CardGroup>
+
+## Error Handling
+
+The system handles common authentication errors:
+
+| Error Code | Message |
+|------------|----------|
+| `auth/email-already-in-use` | "Correo ya registrado." |
+| `auth/invalid-credential` | "Credenciales incorrectas." |
+| Whitelist failure | "❌ Correo no autorizado. Pide al admin que te agregue." |
+
+## Integration Points
+
+- **Exam Creation**: Teacher email and name are stored with each exam
+- **Results Access**: Authenticated teachers can view all student results
+- **Configuration**: Only authenticated users can modify exam settings

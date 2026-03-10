@@ -1,0 +1,522 @@
+---
+title: 'Printing Exams'
+description: 'Print blank exams and answer keys for paper-based testing'
+icon: 'print'
+---
+
+## Overview
+
+The Examen App supports printing two types of documents:
+
+<CardGroup cols={2}>
+  <Card title="Blank Exam (Vacío)" icon="file">
+    Complete exam with all questions and answer options, without correct answers marked
+  </Card>
+  <Card title="Answer Key (Clave)" icon="key">
+    Shows only questions with correct answers marked for grading
+  </Card>
+</CardGroup>
+
+## Print Modes
+
+The print system uses a special print mode that renders a printable view:
+
+```javascript Print Mode State
+const [modoImpresion, setModoImpresion] = useState(null);
+// Values: null | 'vacio' | 'respuestas'
+```
+
+## Printing Process
+
+<Steps>
+  <Step title="Select Exam">
+    Choose an exam from the dropdown in the **2. Gestionar** section.
+    
+    <Note>
+      Print buttons are only visible when an exam is selected and has questions.
+    </Note>
+  </Step>
+  
+  <Step title="Choose Print Type">
+    Click one of the print buttons:
+    
+    ```javascript PanelProfesor.jsx:367-370
+    <div style={{display:'flex', gap:'10px', marginBottom:'15px'}}>
+      <button onClick={() => handleImprimirAdmin('vacio')}>
+        🖨️ Vacío
+      </button>
+      <button onClick={() => handleImprimirAdmin('respuestas')}>
+        🔑 Clave
+      </button>
+    </div>
+    ```
+  </Step>
+  
+  <Step title="Print View Opens">
+    The system switches to print mode and triggers the browser print dialog:
+    
+    ```javascript Print Handler
+    const handleImprimirAdmin = (modo) => {
+      setModoImpresion(modo);
+      setTimeout(() => {
+        window.print();
+      }, 500); // Delay to ensure render completes
+    };
+    ```
+  </Step>
+  
+  <Step title="Print or Save as PDF">
+    Use your browser's print dialog to:
+    - Print to physical printer
+    - Save as PDF
+    - Adjust print settings (margins, orientation, etc.)
+  </Step>
+  
+  <Step title="Close Print View">
+    Click the **❌ Cerrar** button in the top-right to return to normal view:
+    
+    ```javascript PanelProfesor.jsx:270
+    <button onClick={() => setModoImpresion(null)}>❌ Cerrar</button>
+    ```
+  </Step>
+</Steps>
+
+## Print Layout
+
+### Official Header
+
+All printed exams include an official institutional header:
+
+```javascript EncabezadoPDF Component
+<EncabezadoPDF 
+  asignatura={ex.asignatura || ex.titulo}
+  unidad={ex.unidad}
+  tema={ex.tema}
+  opcion={ex.opcion}
+  docenteNombre={ex.docenteNombre}
+/>
+```
+
+#### Header Components
+
+<Accordion title="Logo and Institution Name">
+  ```jsx EncabezadoPDF.jsx:19-30
+  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+    <img 
+      src={logoInstitucional} 
+      alt="Logo ITSZ" 
+      style={{ height: '60px', marginRight: '15px' }} 
+    />
+    <div style={{ textAlign: 'center', flexGrow: 1 }}>
+      <h3 style={{ margin: 0, textTransform: 'uppercase', fontSize: '14pt' }}>
+        Instituto Tecnológico Superior de Zongolica
+      </h3>
+      {unidadAcademica && <p style={{ margin: 0 }}>Unidad Académica: <strong>{unidadAcademica}</strong></p>}
+    </div>
+  </div>
+  ```
+</Accordion>
+
+<Accordion title="Exam Metadata Table">
+  ```jsx EncabezadoPDF.jsx:33-86
+  <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid black' }}>
+    <tbody>
+      {/* Asignatura (Subject) */}
+      <tr>
+        <td colSpan="4" style={{ border: '1px solid black', padding: '4px' }}>
+          <strong>Asignatura:</strong> {asignatura}
+        </td>
+      </tr>
+      
+      {/* Exam Type (Opción) */}
+      <tr>
+        <td colSpan="4" style={{ textAlign: 'center' }}>
+          <strong>Opción:</strong>
+          Diagnóstico ( {opcion === 'diagnostico' ? 'X' : '_'} )
+          1ª oportunidad ( {opcion === '1ra' ? 'X' : '_'} )
+          2ª oportunidad ( {opcion === '2da' ? 'X' : '_'} )
+        </td>
+      </tr>
+      
+      {/* Unit and Topic */}
+      <tr>
+        <td colSpan="2"><strong>Unidad:</strong> {unidad}</td>
+        <td colSpan="2"><strong>Tema:</strong> {tema}</td>
+      </tr>
+      
+      {/* Career and Teacher */}
+      <tr>
+        <td colSpan="2"><strong>Ingeniería:</strong> Ingeniería en Sistemas Computacionales</td>
+        <td colSpan="2"><strong>Docente:</strong> {docenteNombre}</td>
+      </tr>
+      
+      {/* Student Information (Empty for blank exams) */}
+      <tr>
+        <th>Nombre del Alumno(a):</th>
+        <th>No. De Control</th>
+        <th>Fecha de aplicación:</th>
+        <th>Calificación:</th>
+      </tr>
+      <tr style={{ height: '35px' }}>
+        <td>{alumnoNombre || ""}</td>
+        <td>{numControl || ""}</td>
+        <td>{fechaStr}</td>
+        <td>{calificacion !== undefined ? calificacion.toFixed(1) : ""}</td>
+      </tr>
+    </tbody>
+  </table>
+  ```
+  
+  For blank exams, the last row (student info) is empty, allowing students to fill it in manually.
+</Accordion>
+
+### Blank Exam Format (Vacío)
+
+Shows questions with all answer options:
+
+```javascript PanelProfesor.jsx:273-278
+{ex.preguntas && ex.preguntas.map((p, idx) => (
+  <div key={idx} style={{ marginBottom: '10px', padding:'5px', breakInside: 'avoid' }}>
+    <p style={{ fontWeight: 'bold' }}>{idx + 1}. {p.texto}</p>
+    <div style={{ marginLeft: '20px' }}>
+      {p.opciones.map((op, i) => <div key={i}>⭕ {op}</div>)}
+    </div>
+  </div>
+))}
+```
+
+<Accordion title="Example Output">
+  ```
+  1. What is the capital of France?
+     ⭕ London
+     ⭕ Paris
+     ⭕ Berlin
+     ⭕ Madrid
+  
+  2. What is 2 + 2?
+     ⭕ 3
+     ⭕ 4
+     ⭕ 5
+     ⭕ 6
+  ```
+</Accordion>
+
+### Answer Key Format (Clave)
+
+Shows questions with only the correct answer:
+
+```javascript PanelProfesor.jsx:273-278
+{ex.preguntas && ex.preguntas.map((p, idx) => (
+  <div key={idx} style={{ marginBottom: '10px', padding:'5px', breakInside: 'avoid' }}>
+    <p style={{ fontWeight: 'bold' }}>{idx + 1}. {p.texto}</p>
+    <div style={{ marginLeft: '20px' }}>
+      ✅ {p.correcta}
+    </div>
+  </div>
+))}
+```
+
+<Accordion title="Example Output">
+  ```
+  1. What is the capital of France?
+     ✅ Paris
+  
+  2. What is 2 + 2?
+     ✅ 4
+  ```
+</Accordion>
+
+### Teacher Signature Line
+
+All printed documents include a signature line at the bottom:
+
+```javascript PanelProfesor.jsx:280
+<div style={{ marginTop: '50px', textAlign: 'center' }}>
+  <div style={{ borderTop: '1px solid black', width: '250px', margin: '0 auto' }}>
+    Firma del Docente
+  </div>
+</div>
+```
+
+## CSS Print Styles
+
+The app uses CSS classes to control what appears in print:
+
+<Tabs>
+  <Tab title=".no-print">
+    Elements with this class are hidden during printing:
+    
+    ```css
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+    }
+    ```
+    
+    Applied to:
+    - Navigation buttons
+    - Theme controls
+    - Close button in print view
+  </Tab>
+  
+  <Tab title=".hoja-examen">
+    Container for printable content:
+    
+    ```css
+    .hoja-examen {
+      width: 100%;
+      background: white;
+      color: black;
+      font-family: Arial, sans-serif;
+    }
+    ```
+    
+    Ensures consistent appearance across browsers and printers.
+  </Tab>
+  
+  <Tab title="break-inside: avoid">
+    Prevents page breaks within questions:
+    
+    ```javascript
+    <div style={{ breakInside: 'avoid' }}>
+      {/* Question content */}
+    </div>
+    ```
+    
+    Keeps each question intact on one page.
+  </Tab>
+</Tabs>
+
+## Student Result PDFs
+
+Students can also print their results if the teacher enables it:
+
+```javascript Exam Configuration
+permitirImpresion: true // Set in exam settings
+```
+
+### Student PDF Format
+
+Includes:
+
+<Steps>
+  <Step title="Institutional Header">
+    Same header as teacher prints, but with student information filled in:
+    
+    ```jsx Examen.jsx:124-136
+    <EncabezadoPDF 
+      asignatura={examenInfo.titulo} 
+      unidad={examenInfo.unidad}
+      tema={examenInfo.tema}
+      opcion={examenInfo.opcion}
+      alumnoNombre={nombre} 
+      numControl={numControl} 
+      unidadAcademica={unidad} 
+      calificacion={calificacion}
+      fecha={new Date().toISOString()} 
+    />
+    ```
+  </Step>
+  
+  <Step title="Results Table">
+    Detailed breakdown of each question:
+    
+    ```jsx Examen.jsx:139-163
+    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Pregunta</th>
+          <th>Tu Respuesta</th>
+          <th>Correcta</th>
+        </tr>
+      </thead>
+      <tbody>
+        {preguntasAleatorias.map((p, idx) => {
+          const esCorrecta = respuestas[p.texto] === p.correcta;
+          return (
+            <tr key={idx}>
+              <td>{idx + 1}</td>
+              <td>{p.texto}</td>
+              <td style={{ 
+                color: esCorrecta ? 'black' : 'red', 
+                fontWeight: esCorrecta ? 'normal' : 'bold' 
+              }}>
+                {respuestas[p.texto] || '(Sin responder)'}
+              </td>
+              <td>{p.correcta}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+    ```
+  </Step>
+  
+  <Step title="Student Signature Line">
+    ```jsx Examen.jsx:165-169
+    <div style={{ marginTop: '60px', textAlign: 'center' }}>
+      <div style={{ borderTop: '1px solid black', width: '250px', margin: '0 auto' }}>
+        Firma del Alumno
+      </div>
+    </div>
+    ```
+  </Step>
+</Steps>
+
+<Info>
+  Student incorrect answers are shown in **red** for easy identification.
+</Info>
+
+## Print Best Practices
+
+<AccordionGroup>
+  <Accordion title="Paper Size and Margins">
+    Recommended print settings:
+    - **Paper**: Letter (8.5" x 11") or A4
+    - **Orientation**: Portrait
+    - **Margins**: Default (usually 0.5" or 1cm)
+    - **Scale**: 100% (avoid shrinking)
+  </Accordion>
+  
+  <Accordion title="Page Breaks">
+    The system uses `breakInside: 'avoid'` to prevent questions from splitting across pages. For exams with many questions:
+    
+    - Questions may start mid-page
+    - Long questions might still break if they exceed page height
+    - Consider limiting questions per page during exam design
+  </Accordion>
+  
+  <Accordion title="Saving as PDF">
+    Instead of physical printing:
+    
+    1. Click print button
+    2. Select "Save as PDF" in print dialog
+    3. Name file descriptively: `Matematicas_Parcial1_Vacio.pdf`
+    4. Store digitally for future use
+  </Accordion>
+  
+  <Accordion title="Print Multiple Copies">
+    To print for entire class:
+    
+    1. Generate blank exam
+    2. Save as PDF first
+    3. Print PDF with desired number of copies
+    4. This avoids re-rendering for each copy
+  </Accordion>
+</AccordionGroup>
+
+## Browser Compatibility
+
+<Tabs>
+  <Tab title="Chrome/Edge">
+    ✅ Fully supported
+    - Excellent CSS print support
+    - Native PDF export
+    - Accurate page break handling
+  </Tab>
+  
+  <Tab title="Firefox">
+    ✅ Fully supported
+    - Good CSS print support
+    - Native PDF export
+    - Slightly different margins
+  </Tab>
+  
+  <Tab title="Safari">
+    ⚠️ Mostly supported
+    - CSS print support varies
+    - PDF export available
+    - Test before mass printing
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Print Dialog Doesn't Open">
+    The print dialog is triggered after a 500ms delay:
+    
+    ```javascript
+    setTimeout(() => { window.print(); }, 500);
+    ```
+    
+    If it doesn't appear:
+    - Check browser pop-up blocker
+    - Try manual print (Ctrl+P / Cmd+P)
+    - Verify exam has questions
+  </Accordion>
+  
+  <Accordion title="Close Button Not Visible">
+    The close button has a fixed position:
+    
+    ```javascript
+    style={{ position: 'fixed', top: 10, right: 10, zIndex: 9999 }}
+    ```
+    
+    If hidden:
+    - Scroll to top of page
+    - Press Escape key to cancel print
+    - Refresh page to exit print mode
+  </Accordion>
+  
+  <Accordion title="Questions Cut Off">
+    If questions are truncated:
+    - Check page margins in print settings
+    - Reduce margin size
+    - Use landscape orientation for wide content
+    - Split into multiple exams
+  </Accordion>
+  
+  <Accordion title="Logo Not Appearing">
+    The institutional logo must be available:
+    
+    ```javascript
+    import logoInstitucional from './images/LOGOS.png';
+    ```
+    
+    If missing:
+    - Verify image file exists
+    - Check image path
+    - Logo may not print if network restricted
+  </Accordion>
+</AccordionGroup>
+
+## Example Workflows
+
+<Steps>
+  <Step title="Paper-Based Exam">
+    1. Create exam with questions
+    2. Print blank version (🖨️ Vacío)
+    3. Print answer key (🔑 Clave)
+    4. Photocopy blank exams for students
+    5. Use answer key for manual grading
+  </Step>
+  
+  <Step title="Hybrid Approach">
+    1. Students take exam online
+    2. Enable `permitirImpresion` in settings
+    3. Students print their results
+    4. Teacher reviews printed results
+    5. Physical copies for student records
+  </Step>
+  
+  <Step title="Archive Creation">
+    1. Create exams for semester
+    2. Print answer keys for all exams
+    3. Save as PDFs with naming convention
+    4. Store in shared faculty drive
+    5. Reuse in future semesters
+  </Step>
+</Steps>
+
+## Next Steps
+
+<Card title="View Results" icon="chart-bar" href="/teachers/viewing-results">
+  Learn how to monitor student performance and export reports
+</Card>
+
+<Tip>
+  For frequently used exams, save both blank and answer key versions as PDFs to avoid regenerating them each time.
+</Tip>

@@ -1,0 +1,439 @@
+---
+title: 'PDF Export'
+description: 'Print and export exam results with institutional branding'
+icon: 'file-pdf'
+---
+
+## Overview
+
+The Examen App includes a comprehensive PDF export feature that allows students to print their exam results with official institutional headers, complete result breakdowns, and proper formatting for physical documentation.
+
+## Permission System
+
+PDF export is controlled at the exam level by teachers:
+
+```javascript src/Examen.jsx
+{examenInfo.permitirImpresion ? (
+  <button 
+    onClick={() => window.print()}
+    style={{ 
+      padding: '15px 30px', 
+      background: '#007bff', 
+      color: 'white', 
+      border: 'none', 
+      borderRadius: '5px', 
+      fontSize: '1.2em', 
+      cursor: 'pointer', 
+      marginTop: '20px' 
+    }}
+  >
+    📄 Descargar/Imprimir PDF
+  </button>
+) : (
+  <p style={{fontStyle:'italic', color:'#888'}}>
+    La impresión de resultados está desactivada.
+  </p>
+)}
+```
+
+<Info>
+Teachers can enable or disable PDF export for each exam through the admin panel by toggling the "Permitir PDF" checkbox.
+</Info>
+
+## PDF Structure
+
+The exported PDF contains three main sections:
+
+<Steps>
+  <Step title="Institutional Header">
+    Official branding with logos, exam metadata, and student information
+  </Step>
+  
+  <Step title="Results Table">
+    Detailed breakdown of all questions, answers, and correct responses
+  </Step>
+  
+  <Step title="Signature Area">
+    Space for student signature to validate the document
+  </Step>
+</Steps>
+
+## Header Component
+
+The `EncabezadoPDF` component generates the official header:
+
+```javascript src/EncabezadoPDF.jsx
+import logoInstitucional from './images/LOGOS.png';
+
+export default function EncabezadoPDF({ 
+  asignatura, 
+  unidad, 
+  tema, 
+  opcion, 
+  alumnoNombre, 
+  numControl, 
+  unidadAcademica, 
+  calificacion, 
+  fecha, 
+  docenteNombre 
+}) {
+  const CARRERA = "Ingeniería en Sistemas Computacionales";
+  const fechaStr = fecha 
+    ? new Date(fecha).toLocaleDateString('es-MX') 
+    : "___/___/___";
+
+  const isDiag = opcion === 'diagnostico' ? 'X' : '_';
+  const is1ra = opcion === '1ra' ? 'X' : '_';
+  const is2da = opcion === '2da' ? 'X' : '_';
+
+  return (
+    <div style={{ 
+      width: '100%', 
+      fontFamily: 'Arial, sans-serif', 
+      fontSize: '10pt', 
+      marginBottom: '20px' 
+    }}>
+      {/* Logo and title */}
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <img 
+          src={logoInstitucional} 
+          alt="Logo ITSZ" 
+          style={{ height: '60px', marginRight: '15px' }} 
+        />
+        <div style={{ textAlign: 'center', flexGrow: 1 }}>
+          <h3>Instituto Tecnológico Superior de Zongolica</h3>
+          <p>Unidad Académica: <strong>{unidadAcademica}</strong></p>
+        </div>
+      </div>
+      
+      {/* Official information table */}
+      <table style={{ 
+        width: '100%', 
+        borderCollapse: 'collapse', 
+        border: '1px solid black' 
+      }}>
+        {/* Table rows with exam and student info */}
+      </table>
+    </div>
+  );
+}
+```
+
+### Header Fields
+
+The header displays:
+
+<AccordionGroup>
+  <Accordion title="Exam Information">
+    - **Asignatura**: Subject name
+    - **Opción**: Exam type (Diagnóstico, 1ª oportunidad, 2ª oportunidad)
+    - **Unidad**: Unit number
+    - **Tema**: Topic covered
+    - **Ingeniería**: Career program (hardcoded to "Ingeniería en Sistemas Computacionales")
+    - **Docente**: Teacher's name
+  </Accordion>
+  
+  <Accordion title="Student Information">
+    - **Nombre del Alumno(a)**: Student's full name
+    - **No. De Control**: Student ID (format: `###W####`)
+    - **Fecha de aplicación**: Exam completion date
+    - **Calificación**: Final grade (0-10 scale)
+  </Accordion>
+</AccordionGroup>
+
+## Results Table
+
+The detailed results are rendered in a structured table:
+
+```javascript src/Examen.jsx
+<h3>Detalle de Resultados:</h3>
+<table style={{ 
+  width: '100%', 
+  borderCollapse: 'collapse', 
+  fontSize: '10pt', 
+  marginTop: '10px' 
+}}>
+  <thead>
+    <tr style={{ background: '#eee' }}>
+      <th style={{ padding: '5px', border:'1px solid black' }}>#</th>
+      <th style={{ padding: '5px', border:'1px solid black' }}>Pregunta</th>
+      <th style={{ padding: '5px', border:'1px solid black' }}>Tu Respuesta</th>
+      <th style={{ padding: '5px', border:'1px solid black' }}>Correcta</th>
+    </tr>
+  </thead>
+  <tbody>
+    {preguntasAleatorias.map((p, idx) => {
+      const esCorrecta = respuestas[p.texto] === p.correcta;
+      return (
+        <tr key={idx}>
+          <td style={{ padding: '5px', border:'1px solid black' }}>
+            {idx + 1}
+          </td>
+          <td style={{ padding: '5px', border:'1px solid black' }}>
+            {p.texto}
+          </td>
+          <td style={{ 
+            padding: '5px', 
+            border:'1px solid black', 
+            color: esCorrecta ? 'black' : 'red', 
+            fontWeight: esCorrecta ? 'normal' : 'bold' 
+          }}>
+            {respuestas[p.texto] || '(Sin responder)'}
+          </td>
+          <td style={{ padding: '5px', border:'1px solid black' }}>
+            {p.correcta}
+          </td>
+        </tr>
+      );
+    })}
+  </tbody>
+</table>
+```
+
+### Visual Indicators
+
+<CardGroup cols={2}>
+  <Card title="Correct Answers" icon="check">
+    Displayed in black with normal font weight
+  </Card>
+  
+  <Card title="Incorrect Answers" icon="xmark">
+    Highlighted in red with bold font weight
+  </Card>
+</CardGroup>
+
+## Signature Section
+
+The PDF includes a formal signature area:
+
+```javascript src/Examen.jsx
+<div style={{ 
+  marginTop: '60px', 
+  textAlign: 'center', 
+  width: '100%' 
+}}>
+  <div style={{ 
+    borderTop: '1px solid black', 
+    width: '250px', 
+    margin: '0 auto', 
+    paddingTop: '5px' 
+  }}>
+    Firma del Alumno
+  </div>
+</div>
+```
+
+## Print CSS Classes
+
+The application uses CSS classes to control what appears in print vs. screen:
+
+### Screen-Only Content
+
+```javascript
+<div className="no-print" style={{ /* screen styles */ }}>
+  <h1>¡Examen Enviado!</h1>
+  <div style={{ fontSize: '4rem' }}>{calificacion.toFixed(1)}</div>
+  <button onClick={() => window.print()}>
+    📄 Descargar/Imprimir PDF
+  </button>
+</div>
+```
+
+### Print-Only Content
+
+```javascript
+<div className="hoja-examen">
+  <EncabezadoPDF {...examData} {...studentData} />
+  {/* Results table */}
+  {/* Signature area */}
+</div>
+```
+
+<Note>
+The `.no-print` class should be hidden with `@media print { .no-print { display: none; } }` and `.hoja-examen` should only display during print with `@media screen { .hoja-examen { display: none; } }`
+</Note>
+
+## Teacher Admin PDF Features
+
+Teachers can also print exam templates from the admin panel:
+
+```javascript src/PanelProfesor.jsx
+const handleImprimirAdmin = (modo) => { 
+  setModoImpresion(modo); 
+  setTimeout(() => { 
+    window.print(); 
+  }, 500); 
+};
+```
+
+### Print Modes
+
+<Tabs>
+  <Tab title="Blank Exam">
+    ```javascript
+    <button onClick={() => handleImprimirAdmin('vacio')}>
+      🖨️ Vacío
+    </button>
+    ```
+    
+    Prints all questions with empty checkbox circles for each option
+  </Tab>
+  
+  <Tab title="Answer Key">
+    ```javascript
+    <button onClick={() => handleImprimirAdmin('respuestas')}>
+      🔑 Clave
+    </button>
+    ```
+    
+    Prints only the correct answers for grading reference
+  </Tab>
+</Tabs>
+
+### Admin Print Layout
+
+```javascript src/PanelProfesor.jsx
+if (modoImpresion && examenSeleccionado) {
+  const ex = examenes.find(e => e.id === examenSeleccionado);
+  return (
+    <div className="hoja-examen">
+      <EncabezadoPDF 
+        asignatura={ex.asignatura || ex.titulo} 
+        unidad={ex.unidad} 
+        tema={ex.tema} 
+        opcion={ex.opcion} 
+        docenteNombre={ex.docenteNombre} 
+      />
+      <h3 style={{ textAlign: 'center', marginTop: '20px' }}>
+        {modoImpresion === 'respuestas' 
+          ? 'CLAVE DE RESPUESTAS' 
+          : 'CUESTIONARIO'}
+      </h3>
+      {ex.preguntas && ex.preguntas.map((p, idx) => (
+        <div key={idx} style={{ 
+          marginBottom: '10px', 
+          breakInside: 'avoid' 
+        }}>
+          <p style={{ fontWeight: 'bold' }}>
+            {idx + 1}. {p.texto}
+          </p>
+          {modoImpresion === 'vacio' && (
+            <div style={{ marginLeft: '20px' }}>
+              {p.opciones.map((op, i) => (
+                <div key={i}>⭕ {op}</div>
+              ))}
+            </div>
+          )}
+          {modoImpresion === 'respuestas' && (
+            <div style={{ marginLeft: '20px' }}>✅ {p.correcta}</div>
+          )}
+        </div>
+      ))}
+      <div style={{ marginTop: '50px', textAlign: 'center' }}>
+        <div style={{ 
+          borderTop: '1px solid black', 
+          width: '250px', 
+          margin: '0 auto' 
+        }}>
+          Firma del Docente
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+## Configuration in Admin Panel
+
+Teachers configure PDF permissions per exam:
+
+```javascript src/PanelProfesor.jsx
+<label style={{ fontSize:'0.9em', cursor:'pointer' }}>
+  <input 
+    type="checkbox" 
+    checked={permitirPrint} 
+    onChange={e => setPermitirPrint(e.target.checked)} 
+  /> 
+  Permitir PDF
+</label>
+
+<button onClick={actualizarConfiguracion}>
+  💾 Guardar Config
+</button>
+```
+
+The setting is saved to Firestore:
+
+```javascript
+await updateDoc(doc(db, "examenes", examenSeleccionado), { 
+  permitirImpresion: permitirPrint 
+});
+```
+
+## Print Styling Best Practices
+
+<Warning>
+The current implementation uses inline styles for print layouts. Consider adding a dedicated print stylesheet:
+
+```css
+@media print {
+  .no-print { display: none; }
+  .hoja-examen { 
+    display: block;
+    page-break-inside: avoid;
+  }
+  body { font-size: 10pt; }
+  table { page-break-inside: avoid; }
+}
+
+@media screen {
+  .hoja-examen { display: none; }
+}
+```
+</Warning>
+
+## Usage Flow
+
+<Steps>
+  <Step title="Student Completes Exam">
+    Student submits exam and reaches the results page
+  </Step>
+  
+  <Step title="Permission Check">
+    System checks if `examenInfo.permitirImpresion` is true
+  </Step>
+  
+  <Step title="Print Button">
+    If enabled, "Descargar/Imprimir PDF" button is shown
+  </Step>
+  
+  <Step title="Generate PDF">
+    Clicking the button triggers `window.print()`, showing print dialog
+  </Step>
+  
+  <Step title="Export">
+    User can save as PDF or print to physical paper
+  </Step>
+</Steps>
+
+## Data Passed to PDF
+
+```javascript src/Examen.jsx
+<EncabezadoPDF 
+  // Exam data
+  asignatura={examenInfo.titulo} 
+  unidad={examenInfo.unidad}
+  tema={examenInfo.tema}
+  opcion={examenInfo.opcion}
+  // Student data
+  alumnoNombre={nombre} 
+  numControl={numControl} 
+  unidadAcademica={unidad} 
+  calificacion={calificacion}
+  fecha={new Date().toISOString()} 
+/>
+```
+
+<Info>
+The `fecha` is always set to the current timestamp when the exam is submitted, ensuring accurate record-keeping.
+</Info>

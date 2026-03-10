@@ -1,0 +1,402 @@
+---
+title: 'Attempt Limits'
+description: 'Control exam retake policies with configurable attempt restrictions'
+icon: 'repeat'
+---
+
+## Overview
+
+The Examen App implements a robust attempt limiting system that allows teachers to restrict how many times a student can take the same exam. This prevents unlimited retakes and maintains exam integrity.
+
+## Configuration
+
+Teachers set the maximum attempts when creating an exam:
+
+```javascript src/PanelProfesor.jsx
+const crearExamen = async () => {
+  await addDoc(collection(db, "examenes"), { 
+    nombreExamen: nuevoNombreExamen,
+    asignatura: nuevaAsignatura,
+    titulo: `${nuevoNombreExamen} - ${nuevaAsignatura}`,
+    unidad: nuevaUnidad, 
+    tema: nuevoTema, 
+    opcion: nuevaOpcion,
+    preguntas: [], 
+    limite: 0, 
+    intentosMaximos: parseInt(nuevoIntentos),  // ← Attempt limit
+    permitirImpresion: false,
+    docenteNombre: nombreProfe,
+    docenteEmail: usuario.email
+  });
+};
+```
+
+<Info>
+The default value is 1 attempt, but teachers can configure any positive integer value.
+</Info>
+
+## Attempt Tracking
+
+The system tracks attempts by querying previous exam submissions:
+
+```javascript src/Examen.jsx
+const iniciarExamen = async () => {
+  if (!nombre || !numControl || !unidad || errorControl) 
+    return alert("Revisa datos");
+  
+  setFase('cargando');
+  
+  try {
+    // Query all previous attempts by this student for this exam
+    const q = query(
+      collection(db, "resultados"), 
+      where("examenId", "==", id), 
+      where("numControl", "==", numControl.toUpperCase())
+    );
+    const snap = await getDocs(q);
+    const intentos = snap.size;
+    const maximos = examenInfo.intentosMaximos || 1;
+
+    // Check if limit exceeded
+    if (intentos >= maximos) { 
+      setFase('bloqueado'); 
+      setIntentosRealizados(intentos); 
+      return; 
+    }
+    
+    // Allow exam to proceed
+    let banco = examenInfo.preguntas || [];
+    const barajadas = [...banco].sort(() => 0.5 - Math.random());
+    const limite = examenInfo.limite && examenInfo.limite > 0 
+      ? examenInfo.limite 
+      : barajadas.length;
+    setPreguntasAleatorias(barajadas.slice(0, limite));
+    setFase('examen');
+  } catch (e) { 
+    console.error(e); 
+    setFase('registro'); 
+  }
+};
+```
+
+## Validation Logic
+
+<Steps>
+  <Step title="Student Enters Information">
+    Student provides name, student ID (numControl), and academic unit
+  </Step>
+  
+  <Step title="Query Previous Attempts">
+    System queries Firestore for all results matching:
+    - `examenId` = current exam
+    - `numControl` = student's ID (case-insensitive)
+  </Step>
+  
+  <Step title="Count Attempts">
+    The number of returned documents (`snap.size`) equals attempts taken
+  </Step>
+  
+  <Step title="Compare to Limit">
+    If `intentos >= intentosMaximos`, student is blocked
+  </Step>
+  
+  <Step title="Allow or Block">
+    - **Allow**: Load exam questions and proceed
+    - **Block**: Show "Acceso Denegado" screen
+  </Step>
+</Steps>
+
+## Blocked State
+
+When a student exceeds their attempts, they see:
+
+```javascript src/Examen.jsx
+if(fase === 'bloqueado') return (
+  <div style={{
+    padding:'50px', 
+    textAlign:'center', 
+    color:'red'
+  }}>
+    <h2>Acceso Denegado</h2>
+    <p>Intentos agotados.</p>
+    <Link to="/">Volver</Link>
+  </div>
+);
+```
+
+<Warning>
+Once blocked, there is **no way** for the student to reset their attempts from the student interface. Only database-level intervention can restore access.
+</Warning>
+
+## Student ID Validation
+
+The system uses strict student ID validation:
+
+```javascript src/Examen.jsx
+const regexControl = /^\d{3}[Ww]\d{4}$/;
+
+const validarControl = (v) => {
+  setNumControl(v.toUpperCase());
+  setErrorControl(
+    !regexControl.test(v) 
+      ? 'Formato inválido (Ej: 123W1041)' 
+      : ''
+  );
+};
+```
+
+### Expected Format
+
+<CodeGroup>
+
+```text Valid Examples
+123W1041
+456w7890
+789W0001
+```
+
+```text Invalid Examples
+12W1041   ❌ Only 2 digits before W
+123W104   ❌ Only 3 digits after W  
+1234W1041 ❌ 4 digits before W
+ABC1234   ❌ No W separator
+```
+
+</CodeGroup>
+
+<Info>
+The student ID is converted to uppercase before storage, so `123w1041` and `123W1041` are treated as the same student.
+</Info>
+
+## Recording Attempts
+
+Each exam submission creates a permanent record:
+
+```javascript src/Examen.jsx
+const enviarExamen = async () => {
+  let aciertos = 0;
+  preguntasAleatorias.forEach(p => { 
+    if (respuestas[p.texto] === p.correcta) aciertos++; 
+  });
+  const nota = preguntasAleatorias.length > 0 
+    ? (aciertos / preguntasAleatorias.length) * 10 
+    : 0;
+  setCalificacion(nota);
+  
+  try {
+    await addDoc(collection(db, "resultados"), { 
+      examenId: id, 
+      examenTitulo: examenInfo.titulo, 
+      nombre, 
+      numControl,  // ← Key for attempt tracking
+      unidad, 
+      calificacion: nota, 
+      fecha: new Date().toISOString() 
+    });
+    setFase('finalizado');
+  } catch (e) { 
+    console.error(e); 
+  }
+};
+```
+
+### Stored Data
+
+| Field | Purpose |
+|-------|----------|
+| `examenId` | Links attempt to specific exam |
+| `numControl` | Identifies student (used for counting) |
+| `calificacion` | Stores score for this attempt |
+| `fecha` | Timestamp of submission |
+
+## Admin Configuration
+
+Teachers can modify attempt limits for existing exams:
+
+```javascript src/PanelProfesor.jsx
+<div style={{display:'flex', gap:'15px', marginBottom:'15px'}}>
+  <div>
+    <label style={{fontSize:'0.9em'}}>Intentos:</label>
+    <input 
+      type="number" 
+      value={intentosEdit} 
+      onChange={e => setIntentosEdit(e.target.value)} 
+      style={{...inputStyle, width:'70px'}} 
+    />
+  </div>
+</div>
+
+<button onClick={actualizarConfiguracion}>
+  💾 Guardar Config
+</button>
+```
+
+The update function:
+
+```javascript
+const actualizarConfiguracion = async () => { 
+  if (!examenSeleccionado) return; 
+  await updateDoc(doc(db, "examenes", examenSeleccionado), { 
+    limite: parseInt(limiteConfig), 
+    intentosMaximos: parseInt(intentosEdit),  // ← Update attempts
+    permitirImpresion: permitirPrint 
+  }); 
+  alert("Guardado"); 
+  cargarExamenes(); 
+};
+```
+
+<Note>
+Changing the attempt limit **does not** reset existing attempt counts. If a student has already used their attempts, increasing the limit will give them additional tries.
+</Note>
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Single Attempt" icon="1">
+    **intentosMaximos: 1**
+    
+    For high-stakes exams where only one attempt is allowed (default)
+  </Card>
+  
+  <Card title="Practice Mode" icon="infinity">
+    **intentosMaximos: 99**
+    
+    Allow many attempts for practice or formative assessment
+  </Card>
+  
+  <Card title="Two Chances" icon="2">
+    **intentosMaximos: 2**
+    
+    Common policy: one attempt + one makeup
+  </Card>
+  
+  <Card title="Diagnostic Only" icon="stethoscope">
+    **intentosMaximos: 1**
+    
+    Diagnostic exams typically allow only one attempt
+  </Card>
+</CardGroup>
+
+## Edge Cases and Considerations
+
+### Case-Sensitivity
+
+```javascript
+where("numControl", "==", numControl.toUpperCase())
+```
+
+Student IDs are converted to uppercase before querying, so `123w1041` and `123W1041` are treated as the same.
+
+### Partial Submissions
+
+If a student closes the browser mid-exam:
+- The attempt is **not counted** until `enviarExamen()` completes successfully
+- Student can return and start fresh (using same attempt slot)
+
+### Failed Submissions
+
+```javascript
+try {
+  await addDoc(collection(db, "resultados"), { ... });
+  setFase('finalizado');
+} catch (e) { 
+  console.error(e); 
+  // ⚠️ Error: attempt not recorded, student can retry
+}
+```
+
+<Warning>
+If the database write fails, the student can resubmit without using an additional attempt. However, they'll need to refresh or navigate back to restart.
+</Warning>
+
+### Multiple Students Same ID
+
+The system identifies students **only by numControl**, not by name:
+- If two students enter the same student ID, they'll share attempt counts
+- This is by design, assuming student IDs are unique
+
+### Changing Student ID
+
+If a student makes a typo in their ID and submits:
+- The attempt is recorded under the wrong ID
+- The student can use the correct ID to get fresh attempts
+- Teachers should check for orphaned results with invalid IDs
+
+## Resetting Attempts (Manual)
+
+There is no built-in UI to reset attempts. Admins must manually delete records from Firestore:
+
+<Steps>
+  <Step title="Access Firestore Console">
+    Log into Firebase Console and navigate to Firestore Database
+  </Step>
+  
+  <Step title="Find Student Records">
+    Query `resultados` collection for the student's `numControl` and `examenId`
+  </Step>
+  
+  <Step title="Delete Records">
+    Delete the documents to free up attempts
+  </Step>
+  
+  <Step title="Student Retries">
+    Student can now attempt the exam again
+  </Step>
+</Steps>
+
+<Warning>
+Deleting records also removes grade history. Consider adding a "reset attempts" feature that marks records as invalid instead of deleting them.
+</Warning>
+
+## Future Enhancements
+
+<AccordionGroup>
+  <Accordion title="Time-Based Resets">
+    Allow attempts to reset after a certain time period (e.g., 24 hours)
+  </Accordion>
+  
+  <Accordion title="Teacher Override">
+    Add admin UI to grant additional attempts to specific students
+  </Accordion>
+  
+  <Accordion title="Attempt History">
+    Show students their previous scores and remaining attempts
+  </Accordion>
+  
+  <Accordion title="Grace Period">
+    Allow one "practice" attempt that doesn't count toward the limit
+  </Accordion>
+  
+  <Accordion title="Soft vs Hard Limits">
+    Distinguish between recommended attempts and enforced limits
+  </Accordion>
+</AccordionGroup>
+
+## Database Schema
+
+### Exam Document
+```javascript
+{
+  nombreExamen: "Diagnóstico",
+  asignatura: "Matemáticas",
+  intentosMaximos: 2,  // ← Defines the limit
+  // ... other fields
+}
+```
+
+### Result Document
+```javascript
+{
+  examenId: "abc123",      // ← Links to exam
+  numControl: "123W1041",  // ← Identifies student
+  nombre: "Juan Pérez",
+  calificacion: 8.5,
+  fecha: "2026-03-10T...",
+  // ... other fields
+}
+```
+
+<Info>
+Each result document represents one attempt. Counting documents with matching `examenId` and `numControl` gives the total attempts.
+</Info>

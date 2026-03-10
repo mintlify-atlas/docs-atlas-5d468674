@@ -1,0 +1,377 @@
+---
+title: "Installation"
+description: "Complete setup guide for Examen App development environment"
+---
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+<CardGroup cols={2}>
+  <Card title="Node.js" icon="node-js">
+    Version 16.x or higher recommended
+  </Card>
+  <Card title="npm" icon="npm">
+    Comes bundled with Node.js
+  </Card>
+  <Card title="Git" icon="git-alt">
+    For version control
+  </Card>
+  <Card title="Firebase account" icon="fire">
+    Free tier is sufficient
+  </Card>
+</CardGroup>
+
+## Step-by-step installation
+
+<Steps>
+  <Step title="Clone and setup repository">
+    Clone the repository and navigate to the project directory:
+
+    ```bash
+    git clone https://github.com/eric-vc/examen-app.git
+    cd examen-app
+    ```
+
+    The project structure looks like this:
+
+    ```
+    examen-app/
+    ├── src/
+    │   ├── App.jsx           # Main app component with routing
+    │   ├── Home.jsx          # Student home page
+    │   ├── Examen.jsx        # Exam taking interface
+    │   ├── PanelProfesor.jsx # Teacher admin panel
+    │   ├── EncabezadoPDF.jsx # PDF header component
+    │   ├── firebase.js       # Firebase configuration
+    │   ├── main.jsx          # App entry point
+    │   └── index.css         # Global styles
+    ├── public/               # Static assets
+    ├── package.json          # Dependencies and scripts
+    ├── vite.config.js        # Vite configuration
+    └── index.html            # HTML template
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    Install all required npm packages:
+
+    ```bash
+    npm install
+    ```
+
+    ### Key dependencies
+
+    The app uses these main dependencies (from `package.json`):
+
+    ```json package.json
+    {
+      "dependencies": {
+        "firebase": "^12.8.0",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "react-router-dom": "^7.13.0"
+      },
+      "devDependencies": {
+        "@vitejs/plugin-react": "^5.1.1",
+        "eslint": "^9.39.1",
+        "vite": "^7.2.4",
+        "gh-pages": "^6.3.0"
+      }
+    }
+    ```
+
+    <Note>
+      The installation includes ESLint for code quality and gh-pages for deployment.
+    </Note>
+  </Step>
+
+  <Step title="Create Firebase project">
+    ### Set up Firebase
+
+    1. Go to [Firebase Console](https://console.firebase.google.com)
+    2. Click **Create a project** or **Add project**
+    3. Enter a project name (e.g., "examen-app-prod")
+    4. Enable or disable Google Analytics (optional)
+    5. Click **Create project**
+
+    ### Enable required services
+
+    <Tabs>
+      <Tab title="Firestore Database">
+        1. In Firebase Console, go to **Build** → **Firestore Database**
+        2. Click **Create database**
+        3. Choose **Start in test mode** for development
+        4. Select a location closest to your users
+        5. Click **Enable**
+
+        <Warning>
+          Test mode allows unrestricted access. Configure security rules before deploying to production.
+        </Warning>
+      </Tab>
+
+      <Tab title="Authentication">
+        1. Go to **Build** → **Authentication**
+        2. Click **Get started**
+        3. Enable **Email/Password** sign-in method
+        4. Click **Save**
+
+        <Note>
+          Authentication is used for the teacher admin panel.
+        </Note>
+      </Tab>
+    </Tabs>
+
+    ### Get Firebase configuration
+
+    1. In Firebase Console, click the gear icon → **Project settings**
+    2. Scroll to **Your apps** section
+    3. Click the web icon (`</>`) to add a web app
+    4. Register your app with a nickname
+    5. Copy the Firebase configuration object
+  </Step>
+
+  <Step title="Configure Firebase in your app">
+    Open `src/firebase.js` and replace the configuration with your Firebase project credentials:
+
+    ```javascript src/firebase.js
+    import { initializeApp } from "firebase/app";
+    import { getFirestore } from "firebase/firestore";
+    import { getAuth } from "firebase/auth";
+
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "your-project.firebaseapp.com",
+      projectId: "your-project-id",
+      storageBucket: "your-project.firebasestorage.app",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+
+    // Export database
+    export const db = getFirestore(app);
+
+    // Export authentication
+    export const auth = getAuth(app);
+    ```
+
+    <Warning>
+      **Security Note**: The Firebase config contains public API keys that are safe to commit. However, you should configure Firestore security rules to restrict access appropriately.
+    </Warning>
+  </Step>
+
+  <Step title="Configure Vite for deployment">
+    If you plan to deploy to GitHub Pages, update the `base` path in `vite.config.js`:
+
+    ```javascript vite.config.js
+    import { defineConfig } from 'vite'
+    import react from '@vitejs/plugin-react'
+
+    export default defineConfig({
+      plugins: [react()],
+      base: '/your-repo-name/' // Replace with your GitHub repo name
+    })
+    ```
+
+    Also update the `basename` in `src/App.jsx`:
+
+    ```javascript src/App.jsx
+    import { BrowserRouter, Routes, Route } from 'react-router-dom';
+    import Examen from './Examen';
+    import PanelProfesor from './PanelProfesor';
+    import Home from './Home';
+
+    function App() {
+      return (
+        <BrowserRouter basename="/your-repo-name">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/examen/:id" element={<Examen />} />
+            <Route path="/admin" element={<PanelProfesor />} />
+          </Routes>
+        </BrowserRouter>
+      );
+    }
+    export default App;
+    ```
+
+    <Note>
+      For local development or custom domain deployment, you can set `base: '/'` and `basename="/"`.
+    </Note>
+  </Step>
+
+  <Step title="Initialize Firestore collections">
+    The app expects these Firestore collections:
+
+    ### Collections structure
+
+    <Tabs>
+      <Tab title="examenes">
+        Stores exam metadata and questions.
+
+        ```javascript
+        {
+          titulo: "Exam Title",
+          preguntas: [
+            {
+              texto: "Question text?",
+              opciones: ["Option A", "Option B", "Option C", "Option D"],
+              correcta: 0 // Index of correct answer
+            }
+          ],
+          numPreguntas: 10,
+          intentosMaximos: 3,
+          createdAt: timestamp
+        }
+        ```
+      </Tab>
+
+      <Tab title="respuestas">
+        Stores student exam attempts and results.
+
+        ```javascript
+        {
+          examenId: "exam_doc_id",
+          nombre: "Student Name",
+          numControl: "123W1041",
+          unidad: "Zongolica",
+          respuestas: { "0": 2, "1": 1, "2": 3 }, // Question index: selected answer index
+          calificacion: 8.5,
+          timestamp: timestamp
+        }
+        ```
+      </Tab>
+    </Tabs>
+
+    <Note>
+      These collections are created automatically when you create your first exam or when a student submits their first response.
+    </Note>
+  </Step>
+
+  <Step title="Start development server">
+    Start the Vite development server:
+
+    ```bash
+    npm run dev
+    ```
+
+    The app will start at `http://localhost:5173` (or the next available port).
+
+    ### What you should see
+
+    - **Home page** at `/` - Shows available exams from Firebase
+    - **Admin panel** at `/admin` - Teacher interface for managing exams
+    - **Exam page** at `/examen/:id` - Student exam interface
+
+    ### Development features
+
+    <CardGroup cols={2}>
+      <Card title="Hot Module Replacement" icon="bolt">
+        Changes to your code update instantly without refreshing the page.
+      </Card>
+      <Card title="Fast Refresh" icon="arrows-rotate">
+        React components reload while preserving state.
+      </Card>
+      <Card title="ESLint Integration" icon="circle-check">
+        Code quality checks run automatically.
+      </Card>
+      <Card title="Source Maps" icon="map">
+        Debug with original source code in browser dev tools.
+      </Card>
+    </CardGroup>
+  </Step>
+</Steps>
+
+## Verify installation
+
+<Tabs>
+  <Tab title="Check dependencies">
+    Verify all packages installed correctly:
+
+    ```bash
+    npm list --depth=0
+    ```
+
+    You should see all dependencies from `package.json` listed.
+  </Tab>
+
+  <Tab title="Run linter">
+    Check for code quality issues:
+
+    ```bash
+    npm run lint
+    ```
+
+    ESLint will analyze your code and report any issues.
+  </Tab>
+
+  <Tab title="Test build">
+    Verify the production build works:
+
+    ```bash
+    npm run build
+    npm run preview
+    ```
+
+    The production build will be created in the `dist/` directory.
+  </Tab>
+
+  <Tab title="Test Firebase connection">
+    Open your browser console at `http://localhost:5173` and check for any Firebase errors. A successful connection means no error messages appear.
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Firebase configuration errors">
+    **Error**: "Firebase: Error (auth/invalid-api-key)"
+
+    **Solution**: Double-check your Firebase configuration in `src/firebase.js`. Make sure all values are copied correctly from Firebase Console.
+  </Accordion>
+
+  <Accordion title="Module not found errors">
+    **Error**: "Cannot find module 'firebase'" or similar
+
+    **Solution**: 
+    ```bash
+    rm -rf node_modules package-lock.json
+    npm install
+    ```
+  </Accordion>
+
+  <Accordion title="Port already in use">
+    **Error**: "Port 5173 is already in use"
+
+    **Solution**: Vite will automatically try the next available port (5174, 5175, etc.). Check the console output for the actual URL.
+  </Accordion>
+
+  <Accordion title="Blank page after deployment">
+    **Error**: Deployed app shows blank page
+
+    **Solution**: Verify that `base` in `vite.config.js` and `basename` in `src/App.jsx` match your repository name exactly.
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Firebase setup" icon="database" href="/development/firebase-setup">
+    Configure Firestore security rules and indexes.
+  </Card>
+
+  <Card title="Create exams" icon="file-plus" href="/teachers/creating-exams">
+    Learn how to create and manage exams in the admin panel.
+  </Card>
+
+  <Card title="Project structure" icon="folder-tree" href="/development/project-structure">
+    Understand the codebase organization and architecture.
+  </Card>
+
+  <Card title="Deploy your app" icon="rocket" href="/development/deployment">
+    Deploy to GitHub Pages or other hosting platforms.
+  </Card>
+</CardGroup>
