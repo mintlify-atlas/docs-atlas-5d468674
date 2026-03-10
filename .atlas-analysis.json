@@ -1,0 +1,95 @@
+{
+  "projectType": "saas",
+  "projectName": "Examen App",
+  "projectDescription": "A web-based diagnostic exam platform for students and teachers with Firebase integration.",
+  "theme": "almond",
+  "primaryColor": "#007bff",
+  "lightColor": "#4dabf7",
+  "darkColor": "#0056b3",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "For Students",
+            "pages": [
+              "students/taking-exams",
+              "students/viewing-results",
+              "students/academic-units"
+            ]
+          },
+          {
+            "group": "For Teachers",
+            "pages": [
+              "teachers/getting-started",
+              "teachers/creating-exams",
+              "teachers/managing-questions",
+              "teachers/bulk-import",
+              "teachers/viewing-results",
+              "teachers/printing-exams"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/authentication",
+              "features/themes",
+              "features/pdf-export",
+              "features/attempt-limits"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Configuration",
+            "pages": [
+              "development/firebase-setup",
+              "development/environment-variables",
+              "development/deployment"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "development/project-structure",
+              "development/components",
+              "development/data-model"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Student exam portal with registration and validation",
+    "Teacher admin panel for exam management",
+    "Question bank with CSV import/export",
+    "Random question selection and attempt limits",
+    "PDF result generation and printing",
+    "Firebase Authentication and Firestore database",
+    "Multi-theme support (light, dark, warm)",
+    "Academic unit management for multiple campuses"
+  ],
+  "publicApiSurface": [
+    "Home component (exam selection)",
+    "Examen component (student exam interface)",
+    "PanelProfesor component (teacher admin)",
+    "EncabezadoPDF component (PDF header)",
+    "Firebase configuration (db, auth)",
+    "Route: / (home)",
+    "Route: /examen/:id (take exam)",
+    "Route: /admin (teacher panel)"
+  ]
+}
